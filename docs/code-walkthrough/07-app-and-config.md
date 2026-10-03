@@ -90,11 +90,15 @@ export default defineConfig({
 | `npm run dev` | Development server with hot reload |
 | `npm run build` / `npm start` | Production build / serve it |
 | `npm run lint` | ESLint |
-| `npm run typecheck` | `tsc --noEmit` |
+| `npm run typecheck` | `next typegen && tsc --noEmit` (see below) |
 | `npm test` / `npm run test:watch` | Vitest once / in watch mode |
 | `npm run validate` | All of the above, same as CI. **Run before every commit** |
 
 `"engines": { "node": ">=22.12" }` documents the minimum Node version (required by Vite 8).
+
+**Why `next typegen` first?** `layout.tsx` uses `LayoutProps<'/'>`, a *global* type that Next.js generates into `.next/types/` (pulled in by `next-env.d.ts`). `next dev` and `next build` create it, so `tsc` passes on your machine. But `.next/` is gitignored, and CI runs `typecheck` on a fresh checkout *before* `build`, so plain `tsc` fails with `Cannot find name 'LayoutProps'`. `next typegen` generates just those types, in about a second, without a full build: the fix the Next.js docs recommend for CI.
+
+> **Lesson:** "works on my machine" often means "depends on a file my machine generated". Reproduce CI failures in a fresh clone (`git clone` into a temp folder, `npm ci`, run the failing step) before changing anything.
 
 ## `.github/workflows/ci.yml`
 

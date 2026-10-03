@@ -35,7 +35,7 @@ The project is built the way production software is: a layered architecture, 257
 ## Features
 
 | | Feature | Details |
-| |--- | --- | --- |
+| --- | --- | --- |
 | | **37-key keyboard** | Two piano-shaped manuals on the computer keyboard; mouse and multi-touch; octave shift to reach C1–C8 |
 | | **8 voices** | Concert grand, Bright grand, Electric piano, Harpsichord, Drawbar organ, String ensemble, Vibraphone, Celesta |
 | | **Layer & split** | Two voices on every key with a balance knob, or a separate left-hand voice with a movable split point |

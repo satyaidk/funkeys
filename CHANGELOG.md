@@ -31,6 +31,9 @@ The digital piano release: real-piano functions, a bigger keyboard and a redesig
 - `lib/` split into `lib/music/` and `lib/audio/`; components regrouped into `console/`, `piano/` and `ui/`
 - Notes are matched by physical key (`event.code`) for press and release (ADR 0006 supersedes ADR 0003)
 
+### Fixed
+- CI type-check failing with `Cannot find name 'LayoutProps'` on a fresh checkout: `npm run typecheck` now runs `next typegen` first to generate Next.js route types
+
 ### Removed
 - `ControlPanel`, `NowPlaying` and `Header` (replaced by the console, the LCD and the page header)
 
