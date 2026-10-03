@@ -1,166 +1,190 @@
 # Testing
 
-The project has **76 automated tests** across 7 files. They run in about 5 seconds with `npm test`, and on every push via CI.
+**220 automated tests** across 23 files, running in about 15 seconds with `npm test`, and on every push via CI.
 
 ---
 
 ## 1. Why test?
 
-- **Confidence to change code.** Refactor freely; if something breaks, a test tells you within seconds.
-- **Bugs stay fixed.** Every bug found during development got a **regression test**, so it can't silently come back.
-- **Documentation that can't go stale.** Tests show exactly how each piece is meant to behave.
+- **Confidence to change code.** Refactor freely; a test tells you within seconds if something broke.
+- **Bugs stay fixed.** Every bug found during development has a **regression test**.
+- **Living documentation.** Tests state exactly how each piece should behave, and unlike docs they can't go stale.
 
 ## 2. Tools
 
 | Tool | Role |
 | --- | --- |
-| [Vitest](https://vitest.dev) | Test runner: finds `*.test.ts(x)` files, runs them, reports results |
-| [jsdom](https://github.com/jsdom/jsdom) | A simulated browser (DOM, events) running in Node |
-| [React Testing Library](https://testing-library.com/docs/react-testing-library/intro) | Renders components and finds elements **the way users do** (by role, label, text) |
+| [Vitest](https://vitest.dev) | Test runner |
+| [jsdom](https://github.com/jsdom/jsdom) | Simulated browser (DOM, events) in Node |
+| [React Testing Library](https://testing-library.com/docs/react-testing-library/intro) | Render components and query them **the way users do** (role, label, text) |
 | [jest-dom](https://github.com/testing-library/jest-dom) | Readable matchers: `toBeInTheDocument()`, `toBeDisabled()`, `toHaveAttribute()` |
-| `src/test/fake-web-audio.ts` | A hand-written fake `AudioContext` (jsdom has no audio) |
+| `src/test/fake-web-audio.ts` | A hand-written fake Web Audio API (jsdom has none) |
 
 ## 3. Running tests
 
 ```bash
-npm test               # run everything once
-npm run test:watch     # re-run affected tests as you save files
-npx vitest run notes   # run only test files whose path matches "notes"
-npm run validate       # lint + typecheck + test + build (what CI runs)
+npm test                 # everything once
+npm run test:watch       # re-run as you save
+npx vitest run tuning    # only files whose path matches "tuning"
+npx vitest run -t "sostenuto"   # only tests whose name matches
+npm run validate         # lint + typecheck + test + build (what CI runs)
 ```
 
-## 4. The testing pyramid
+## 4. What's tested where
 
 ```
-            ▲  fewer, slower, more realistic
-           ╱ ╲
-          ╱ E2E╲        (not yet: see roadmap: Playwright)
-         ╱───────╲
-        ╱Integration╲   PianoApp.test.tsx, usePiano.test.tsx
-       ╱─────────────╲
-      ╱     Unit       ╲ notes, dom, audio-engine, Piano, ControlPanel
-     ╱───────────────────╲
-            many, fast, focused
+              ▲  fewer, slower, more realistic
+             ╱ ╲
+            ╱E2E╲          (next: Playwright, see roadmap)
+           ╱─────╲
+          ╱ Integ. ╲       PianoApp, usePiano, useRecorder, useMetronome
+         ╱───────────╲
+        ╱    Unit      ╲   lib/**, ui primitives, piano & console components
+       ╱─────────────────╲
 ```
 
-| File | Level | What it covers | Tests |
-| --- | --- | --- | --- |
-| `lib/notes.test.ts` | Unit | Frequency math, key mapping, octave shifting, colors | 10 |
-| `lib/dom.test.ts` | Unit | `isTypingTarget` for every input type | 12 |
-| `lib/audio-engine.test.ts` | Unit | Init, voices, envelope, release, cleanup, volume (with fake audio) | 17 |
-| `components/piano/Piano.test.tsx` | Unit | Key rendering, labels, `aria-pressed`, pointer events | 8 |
-| `components/controls/ControlPanel.test.tsx` | Unit | Volume, octave buttons and limits, sustain toggle | 8 |
-| `hooks/usePiano.test.tsx` | Integration | Real keyboard events → state, through the real engine | 18 |
-| `components/PianoApp.test.tsx` | Integration | The whole UI wired together | 3 |
+| File | Covers | Tests |
+| --- | --- | --- |
+| **lib/music** | | |
+| `notes.test.ts` | MIDI ↔ id conversions, frequencies, colors | 9 |
+| `keyboard-map.test.ts` | 37 keys, contiguous C3–C6, unique codes, black-key gaps, octave shift | 7 |
+| `tuning.test.ts` | Master tuning, transpose, temperament invariants (pure 5/4 and 3/2) | 10 |
+| **lib/audio** | | |
+| `voices.test.ts` | Every recipe valid; single/layer/split routing | 15 |
+| `dynamics.test.ts` | Touch curves, position velocity, velocity → gain | 6 |
+| `effects.test.ts` | Impulse responses: length, pre-delay, decay | 3 |
+| `synth-voice.test.ts` | Partials, inharmonicity, velocity, soft pedal, FM, LFOs, noise, release, cleanup | 17 |
+| `audio-engine.test.ts` | Init, master chain, layers, polyphony, release, reverb cache, brilliance, clicks | 21 |
+| `metronome.test.ts` | Beat spacing, accents (4/4, 6/8), lookahead, tempo change, tap tempo | 12 |
+| **lib** | | |
+| `note-tracker.test.ts` | Sustain and sostenuto rules, including combinations | 11 |
+| `settings.test.ts` | Clamping, rounding, tuning grid, key wrap-around | 6 |
+| `dom.test.ts` | Typing targets vs. non-text inputs | 12 |
+| **hooks** | | |
+| `usePiano.test.tsx` | Keyboard play, both manuals, shortcuts, pedals, layer/split, recorder events | 26 |
+| `useRecorder.test.ts` | Record timing, playback, stop, clear | 8 |
+| `useMetronome.test.ts` | Start, beat lights, tempo clamp, time signatures, tap | 6 |
+| **components** | | |
+| `Piano.test.tsx` | 37 keys, labels (incl. layout map), pointer input, split labels | 9 |
+| `PedalUnit.test.tsx` | Order, pressed state, toggle | 4 |
+| `Display.test.tsx` | LCD content per mode, tuning, notes, recorder, time format | 7 |
+| `Transport.test.tsx` | Recorder buttons + tabs keyboard navigation | 6 |
+| `Knob.test.tsx` | ARIA, keyboard steps, drag, handled keys | 4 |
+| `SegmentedControl.test.tsx` | Radio semantics, roving tabindex, arrows; RadioPads | 7 |
+| `Stepper.test.tsx` | Single step, hold-to-repeat, keyboard activation, limits | 6 |
+| `PianoApp.test.tsx` | Everything wired together | 8 |
 
 ## 5. Anatomy of a test
 
-Every test follows **Arrange → Act → Assert**:
+**Arrange → Act → Assert**, named as a sentence about behavior:
 
 ```ts
-it('releases the right note even if Shift changed the character', () => {
-  // Arrange: render the hook
-  const { result } = renderHook(() => usePiano());
+it('holds only the notes that were down when it was pressed', () => {
+  tracker.press('C3');               // Arrange
+  tracker.setSostenuto(true);
+  tracker.press('E4');
 
-  // Act: press ";" then release while Shift turns it into ":"
-  press(';', 'Semicolon');
-  release(':', 'Semicolon', { shiftKey: true });
-
-  // Assert: nothing is stuck
-  expect(result.current.activeNoteIds.size).toBe(0);
+  expect(tracker.release('C3')).toBe('sustain');   // Act + Assert
+  expect(tracker.release('E4')).toBe('stop');
 });
 ```
 
-Test names read as **sentences describing behavior** ("releases the right note even if…"), not implementation ("calls pressedKeys.delete"). That way tests survive refactors.
+## 6. Testing audio without speakers: the fake `AudioContext`
 
-## 6. Testing the audio engine without audio: the fake `AudioContext`
-
-jsdom has no Web Audio API. Instead of mocking every call with `vi.fn()`, `src/test/fake-web-audio.ts` implements a **small fake** with the same shape that **records** what happens:
+`fake-web-audio.ts` implements just enough of the Web Audio API and **records** what happens:
 
 ```ts
-class FakeAudioParam {
-  value: number;
-  events: ParamEvent[] = [];   // every setValueAtTime / ramp, in order
-  linearRampToValueAtTime(value, time) { this.events.push({ type: 'linearRamp', value, time }); … }
-}
-
-class FakeOscillatorNode {
-  startTime = null; stopTime = null;   // when start()/stop() were scheduled
-  finish() { this.onended?.(); }       // test helper: simulate playback ending
-}
-
-class FakeAudioContext {
-  currentTime = 0;                     // tests move the audio clock by hand
-  oscillators = []; gainNodes = [];    // everything created, for assertions
-}
+class FakeAudioParam { value; events: ParamEvent[]; inputs: Set<FakeAudioNode>; … }   // every ramp, and modulators
+class FakeOscillatorNode { frequency; detune; startTime; stopTime; finish() }          // finish() simulates "ended"
+class FakeAudioContext { currentTime = 0; oscillators = []; gainNodes = []; panners = []; convolvers = []; buffers = []; … }
 ```
 
-Tests install it with `vi.stubGlobal('AudioContext', FakeAudioContext)` (via `installFakeAudioContext()`), and Vitest removes it after each test (`unstubGlobals: true`).
-
-This makes precise assertions possible:
+Tests install it with `installFakeAudioContext()`; Vitest removes it after each test (`unstubGlobals: true`). That makes precise assertions possible:
 
 ```ts
-expect(gain.events).toEqual([
-  { type: 'set',        value: 0,       time: 0 },
-  { type: 'linearRamp', value: 1,       time: attack },
-  { type: 'linearRamp', value: sustain, time: attack + decay },
-]);
+// The FM modulator is wired into the carrier's frequency
+expect(carrier.frequency.inputs.size).toBe(1);
+
+// Release fades from where the envelope actually is
+expect(hold.value).toBeLessThan(peak);
+expect(events.at(-1)).toEqual({ type: 'linearRamp', value: 0, time: 0.45 });
 ```
 
-> **Fakes vs. mocks.** A *mock* (`vi.fn()`) checks "was this function called?". A *fake* is a simplified working implementation. Fakes make tests less brittle: they check *outcomes* (the envelope shape), not *call sequences*.
+> **Fakes vs. mocks:** a mock (`vi.fn()`) checks "was this called?"; a fake is a simplified working implementation. Fakes let tests check **outcomes** (the audio graph's shape) rather than call sequences, so they survive refactors.
 
-## 7. Testing components the way users use them
+## 7. Controlling time
 
-React Testing Library deliberately makes it hard to poke at component internals. You find elements by **accessible role and name**, which also checks that the UI is accessible:
+Three techniques keep time-based code deterministic:
+
+| Technique | Used for |
+| --- | --- |
+| **Fake audio clock**: set `ctx.currentTime` by hand | Envelopes, releases, the polyphony limit |
+| **Fake clock object** implementing `MetronomeClock` | The metronome scheduler, in isolation |
+| **`vi.useFakeTimers()`** + `vi.advanceTimersByTime(ms)` | Recorder playback, Stepper hold-to-repeat, beat lights |
 
 ```ts
-screen.getByRole('button', { name: 'C#4' });        // uses aria-label
-screen.getByLabelText('Volume');                    // uses <label htmlFor>
-fireEvent.pointerDown(key('G4'), { button: 0 });
-expect(onNoteStart).toHaveBeenCalledWith('G4');
+act(() => result.current.play(performer));
+act(() => vi.advanceTimersByTime(100));
+expect(performer.noteOn).toHaveBeenCalledWith('C4', 0.8);
 ```
 
-If a test can't find a button by its name, a screen-reader user can't either.
+The recorder uses `Date.now()` rather than `performance.now()` precisely so fake timers control it.
 
-## 8. Testing hooks
+## 8. Testing components like a user
 
-`renderHook` runs a hook inside a tiny test component and exposes its latest return value as `result.current`:
+Query by **role and accessible name**. If a test can't find the control, a screen-reader user can't either:
 
 ```ts
-const { result } = renderHook(() => usePiano());
-fireEvent.keyDown(window, { key: 'a', code: 'KeyA' });   // real event on window
-expect(result.current.activeNoteIds).toEqual(new Set(['C4']));
+screen.getByRole('slider', { name: 'Master volume' });
+screen.getByRole('radio', { name: /Harpsichord/ });
+screen.getByRole('button', { name: 'Sustain pedal' });
+screen.getByRole('group', { name: 'Display' });
 ```
 
-`fireEvent` wraps the dispatch in `act()`, so React finishes re-rendering before the assertion. For direct calls, wrap them yourself: `act(() => result.current.onNoteStart('E4'))`.
+### Animated UI: wait for it
 
-## 9. Regression tests
+Tab pages cross-fade (`AnimatePresence mode="wait"`): the next page mounts after the previous one fades out. Those tests use **`findBy…`** queries, which retry until the element appears:
 
-Each bug fixed during development has a test named after the behavior it protects:
+```ts
+fireEvent.click(tab('Tuning'));
+fireEvent.click(await screen.findByRole('button', { name: 'Transpose up a semitone' }));
+```
+
+## 9. Testing hooks
+
+```ts
+const renderPiano = () => renderHook(() => usePiano({ audio: useAudioEngine() }));
+const { result } = renderPiano();
+fireEvent.keyDown(window, { code: 'KeyQ' });            // a real event on window
+expect(result.current.activeNoteIds).toEqual(new Set(['F4']));
+```
+
+Hooks that take dependencies are easy to isolate. `useMetronome` gets a hand-made `AudioControls` with a controllable clock.
+
+## 10. Regression tests
 
 | Bug | Test |
 | --- | --- |
-| Replaying a note during its release left it stuck | `audio-engine.test.ts`: *can stop a note that was replayed during its release tail* |
-| Releasing with Shift held left a note stuck | `usePiano.test.tsx`: *releases the right note even if Shift changed the character* |
-| Volume slider focus silenced the keyboard | `usePiano.test.tsx`: *keeps playing while the volume slider is focused* |
-| Ctrl+Z changed the octave | `usePiano.test.tsx`: *does not react to Ctrl+Z / Ctrl+X* |
-| Turning sustain off cut held notes | `usePiano.test.tsx`: *does not cut notes that are still held…* |
-| Hovering over a key stopped its note | `Piano.test.tsx`: *does not stop a note when the pointer just passes over the key* |
+| A note replayed during its release got stuck | `audio-engine`: *can stop a note that was replayed during its release tail* |
+| Shift changed which note a key played | `usePiano`: *plays the same note with Shift held (the soft pedal)* |
+| Hovering a key stopped a note held on the keyboard | `Piano`: *does not stop a note when the pointer just passes over the key* |
+| Ctrl+arrows changed the octave | `usePiano`: *leaves Ctrl+arrow combinations to the browser* |
+| Lifting sustain cut notes still held | `usePiano` / `note-tracker`: *does not cut notes that are still held…* |
+| Arrow keys on a focused control also moved the octave | `Knob`: *marks handled keys so global shortcuts ignore them* + `usePiano`: *skips keys a focused control already handled* |
 
-> **Verify your tests can fail.** A test that never fails proves nothing. After writing one, temporarily re-introduce the bug and watch it go red. (This was done for the hover regression test.)
+> **Verify tests can fail.** After writing a test, break the code on purpose and watch it go red. For example, removing the sostenuto check in `NoteTracker.isPedalHolding` makes four tests fail.
 
-## 10. Writing a new test: checklist
+## 11. Checklist for a new test
 
 1. Create `thing.test.ts(x)` next to `thing.ts(x)`
-2. Import from `vitest` explicitly: `import { describe, it, expect } from 'vitest'`
-3. Using audio? Call `installFakeAudioContext()` in `beforeEach`
-4. Arrange → Act → Assert, with one behavior per test
-5. Name it as a sentence describing behavior
-6. Make it fail once on purpose, then make it pass
-7. Run `npm run validate` before committing
+2. Import from `vitest` explicitly
+3. Audio? `installFakeAudioContext()` in `beforeEach`. Time? Fake timers or a fake clock
+4. One behavior per test, named as a sentence
+5. Make it fail once on purpose
+6. `npm run validate` before committing
 
-## 11. What's not tested (yet)
+## 12. What isn't tested (yet)
 
-- **Real sound output.** You can't assert "it sounds like a piano"; that needs manual listening
-- **Visual appearance** (colors, glow, layout): candidates for screenshot tests
-- **Real browsers.** jsdom isn't Chrome. End-to-end tests with Playwright would cover this ([roadmap](./roadmap.md))
+- **How it sounds.** Synthesis quality needs ears
+- **Pixels.** Colors and layout; candidates for screenshot tests
+- **Real browsers.** jsdom isn't Chrome; Playwright E2E tests would cover this ([roadmap](./roadmap.md))

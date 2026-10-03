@@ -2,96 +2,93 @@
 
 How to present this project on your resume, GitHub, LinkedIn and in interviews.
 
-> **The golden rule:** only claim what you can explain. Interviewers *will* ask "how does that work?" and "why did you do it that way?". Read the [code walkthrough](./code-walkthrough/) and [ADRs](./decisions/) until you can explain every file without notes. Then everything below is genuinely yours to say.
+> **The golden rule:** only claim what you can explain. Interviewers *will* ask "how does that work?" and "why that way?". Work through the [code walkthrough](./code-walkthrough/) and the [ADRs](./decisions/) until you can explain every file without notes. Then everything below is yours to say.
 
 ---
 
 ## 1. Elevator pitch (30 seconds)
 
-> "I built a browser piano you play with your computer keyboard. There are no audio files: every note is synthesized in real time with the Web Audio API, layering six harmonic oscillators with an ADSR envelope to get a piano-like tone. It's built with Next.js, TypeScript and Framer Motion, works with mouse, touch and keyboard, and has 76 automated tests and a CI pipeline. The most interesting part was tracking down race conditions that caused notes to get stuck."
+> "I built a browser-based digital piano. All four rows of your computer keyboard become a 37-key, two-manual keyboard, and every sound is synthesized live with the Web Audio API. There are eight voices, from a concert grand with string inharmonicity to an FM electric piano. I researched real digital pianos and implemented their functions: layer and split, all three pedals including sostenuto, touch curves, reverb, master tuning and historical temperaments, a metronome scheduled on the audio clock, and a recorder. It's Next.js and TypeScript with 220 tests and CI, and the interface is designed to look and behave like the instrument itself."
 
 ## 2. Resume bullets
 
-Pick 2–3. Each follows **action verb + what + how + result**:
+Pick 3–4. Each is **action + what + how + result**:
 
-- Built a real-time **browser piano** in **Next.js, React and TypeScript** that synthesizes sound with the **Web Audio API** (additive synthesis with 6 harmonic oscillators and an ADSR envelope), so no audio assets need downloading
-- Designed a **layered architecture** (UI components → custom hooks → framework-free audio engine) that keeps the audio engine fully unit-testable and swappable
-- Diagnosed and fixed **race conditions** that left notes stuck (async audio init, timer-based cleanup, Shift-modified key releases), each covered by a **regression test**
-- Wrote **76 unit and integration tests** with **Vitest and React Testing Library**, including a custom fake Web Audio API, and automated lint/typecheck/test/build in **GitHub Actions CI**
-- Built a **responsive, accessible UI** (ARIA roles, reduced-motion support, CSS `clamp()` sizing from 320px phones to desktop) with **Framer Motion** spring animations
-- Documented the system with an architecture guide, **5 Architecture Decision Records**, and per-file code walkthroughs
+- Built a **browser-based digital piano** in **Next.js, React and TypeScript** with 8 voices synthesized in real time via the **Web Audio API**: additive partials with inharmonicity, **FM synthesis**, LFO vibrato/tremolo, convolution reverb and a 64-voice polyphony limit
+- Implemented **real digital-piano functions** researched from Yamaha and Roland manuals: layer/split modes, **sustain, sostenuto and soft pedals**, touch curves, transpose, master tuning (415–466 Hz) and **six historical temperaments**
+- Designed a **layered architecture** (UI → hooks → framework-free core) with pedal logic as a **pure state machine** and data-driven voice recipes, documented in **11 Architecture Decision Records**
+- Engineered a **sample-accurate metronome** with a lookahead scheduler on the audio clock, immune to main-thread jitter
+- Wrote **220 unit and integration tests** (Vitest, React Testing Library) using a custom **fake Web Audio API** and fake clocks; automated lint/typecheck/test/build with **GitHub Actions**
+- Built an **accessible hardware-style UI design system** (knobs, steppers, radio groups, tabs with ARIA roles and keyboard support) with **Framer Motion**, responsive from phones to desktop
 
-**Skills line:** TypeScript · React · Next.js (App Router) · Tailwind CSS · Framer Motion · Web Audio API · Vitest · React Testing Library · GitHub Actions · Accessibility (WCAG/ARIA)
+**Skills line:** TypeScript · React 19 · Next.js 16 · Tailwind CSS 4 · Framer Motion · Web Audio API · DSP basics · Vitest · React Testing Library · GitHub Actions · WAI-ARIA accessibility
 
-## 3. Interview stories (STAR format)
-
-Behavioral interviews ask "tell me about a hard bug" or "a time you made a trade-off". Use **S**ituation, **T**ask, **A**ction, **R**esult.
+## 3. Interview stories (STAR)
 
 ### Story 1: The stuck-note race condition
+- **Situation:** Pressing the same key twice quickly could leave a note ringing forever.
+- **Task:** Find the root cause and make sure it couldn't return.
+- **Action:** I traced it to the engine: a `setTimeout` removed a note from the active map *after* its fade-out, so a second press during the fade created a new voice that the old timer then deleted. I changed release to forget the note immediately and free audio nodes from the oscillator's `ended` event, then wrote a regression test that replays the exact sequence against a fake AudioContext.
+- **Result:** Fixed and guarded by a test. I learned to look for shared mutable state touched by delayed callbacks, and found the same class of bug in async audio init and Shift-modified key releases.
 
-- **Situation:** Users could get a note stuck playing forever if they pressed the same key twice quickly.
-- **Task:** Find the root cause and make sure it couldn't come back.
-- **Action:** I traced it to the audio engine: on release, a `setTimeout` removed the note from the active-notes map *after* the fade-out. A second press during the fade created a new voice under the same key, then the old timer deleted *that* entry, so the next key-up found nothing to stop. I changed release to remove the entry immediately and free the audio nodes in the oscillator's `onended` event instead. Then I wrote a regression test using a fake `AudioContext` that replays the exact sequence.
-- **Result:** The bug is fixed and guarded by a test. I also learned to look for shared mutable state touched by delayed callbacks, a pattern I then found in two other places (async init and Shift-modified key releases).
+### Story 2: Making the metronome steady
+- **Situation:** A `setInterval` metronome drifted audibly whenever React re-rendered keys.
+- **Action:** I implemented a lookahead scheduler: a 25 ms timer books clicks 120 ms ahead at exact audio-clock times, behind a two-method clock interface so it's testable with a fake clock. Beat lights are delayed to match when each click is heard.
+- **Result:** Sample-accurate timing regardless of UI load, documented in ADR 0007, with 12 tests.
 
-### Story 2: A trade-off decision (synthesis vs. samples)
+### Story 3: Getting the sostenuto pedal right
+- **Situation:** Sostenuto has subtle rules: it holds only notes down when pressed, and also catches notes the sustain pedal is holding.
+- **Action:** Instead of adding conditions to the React hook, I extracted a pure `NoteTracker` state machine whose methods return decisions ("stop these notes"), and a "pedal sources" model so keyboard, screen and playback can each hold a pedal.
+- **Result:** Every combination covered by fast unit tests; the hook became simple orchestration ("functional core, imperative shell").
 
-- **Situation:** A piano needs realistic sound, but real piano samples are megabytes of downloads.
-- **Action:** I compared full samples, sparse samples with pitch shifting, a library like Tone.js, and synthesis, then documented the options in an ADR.
-- **Result:** I chose synthesis: instant load, any pitch, and full control. I accepted a less realistic timbre, and isolated the engine behind a hook so samples could be swapped in later without touching the UI.
+### Story 4: A trade-off decision (synthesis vs. samples)
+- **Action:** Compared samples, sparse samples, Tone.js and synthesis; documented in ADR 0001; later extended to data-driven recipes (ADR 0009).
+- **Result:** Instant load and full control, with the engine isolated so samples could be added later.
 
-### Story 3: Making it work everywhere
+## 4. Technical questions to prepare
 
-- **Situation:** The keyboard was 620px wide and broke on phones; touching keys scrolled the page; the volume slider stole keyboard input.
-- **Action:** I sized keys with CSS variables and `clamp()` (no JS resize logic), unified mouse and touch with Pointer Events, disabled touch scrolling on keys, and narrowed the "is the user typing?" check to text inputs only.
-- **Result:** It works from 320px phones to desktops (checked at 320, 375 and 1280px), with an automated test for each input fix.
-
-## 4. Technical questions you should be ready for
-
-| Question | Where to study |
+| Question | Study |
 | --- | --- |
-| How do you generate a note's frequency? | [Music theory §5](./concepts/music-theory.md#5-the-frequency-formula) |
-| What's an ADSR envelope, and how is it scheduled? | [Web Audio §5](./concepts/web-audio.md#5-the-adsr-envelope-how-volume-changes-over-time) |
-| Why can't you start audio on page load? | [Web Audio §8](./concepts/web-audio.md#8-the-autoplay-policy) |
-| `useRef` vs `useState`? Why both in `usePiano`? | [ADR 0002](./decisions/0002-refs-plus-state-for-note-tracking.md) |
-| What does `useCallback` actually buy you here? | [React patterns §6–7](./concepts/react-patterns.md#6-usecallback-and-usememo-stable-identities) |
-| `event.key` vs `event.code`? | [ADR 0003](./decisions/0003-track-physical-keys-with-event-code.md) |
-| Server vs Client Components? | [Architecture §5](./architecture.md#5-server-vs-client-components) |
-| How do you test code that uses browser APIs jsdom lacks? | [Testing §6](./testing.md#6-testing-the-audio-engine-without-audio-the-fake-audiocontext) |
-| How would you scale this (more instruments, recording, MIDI)? | [Roadmap](./roadmap.md) |
-| What would you do differently? | [Architecture §13](./architecture.md#13-known-limitations) |
+| How do you calculate a note's frequency? With a temperament? | [Music theory §5–8](./concepts/music-theory.md#5-the-frequency-formula) |
+| What is FM synthesis? Inharmonicity? | [Web Audio §3, §6](./concepts/web-audio.md#3-additive-synthesis-partials) |
+| Why can't `setInterval` drive a metronome? | [ADR 0007](./decisions/0007-lookahead-metronome-scheduler.md) |
+| What does the sostenuto pedal do, and how did you model it? | [Piano functions](./concepts/piano-functions.md#the-three-pedals), [ADR 0008](./decisions/0008-pedal-logic-as-a-pure-state-machine.md) |
+| `event.key` vs `event.code`? | [ADR 0006](./decisions/0006-map-notes-by-physical-key.md) |
+| `useRef` vs `useState`? | [ADR 0002](./decisions/0002-refs-plus-state-for-note-tracking.md) |
+| How do you test code that uses browser APIs jsdom lacks? Time? | [Testing §6–7](./testing.md#6-testing-audio-without-speakers-the-fake-audiocontext) |
+| How did you make custom controls accessible? | [React patterns §9](./concepts/react-patterns.md#9-accessible-widgets-roving-tabindex) |
+| How did you approach the visual design? | [ADR 0011](./decisions/0011-instrument-as-interface.md) |
+| What would you do next? | [Roadmap](./roadmap.md) |
 
-## 5. Make the GitHub repo shine
+## 5. Make the repo shine
 
-Recruiters spend about 30 seconds on a repo. Checklist:
+- [ ] **Deploy** (Vercel, free) and put the link at the top of the README
+- [ ] Record a **GIF**: play a chord with sustain, switch to Layer, start the metronome (ScreenToGif on Windows)
+- [ ] Repo **name/description**: `keyboard-piano`, "A browser digital piano: 8 synthesized voices, pedals, tunings, metronome & recorder. Next.js + Web Audio"
+- [ ] **Topics:** `nextjs`, `typescript`, `web-audio-api`, `react`, `tailwindcss`, `synthesizer`, `music`
+- [ ] Green **CI badge**; **pin** the repo; choose a **license** (MIT is common)
+- [ ] Clean **commit messages** from now on
 
-- [ ] **Deploy it** (Vercel, free) and put the live link at the top of the README
-- [ ] Add a **GIF or screenshot** of playing a chord to the README (tools: ScreenToGif on Windows, Kap on macOS)
-- [ ] Give the repo a clear **name** and **description** (e.g. `keyboard-piano`: "Play piano with your keyboard: Next.js + Web Audio API")
-- [ ] Add **topics**: `nextjs`, `typescript`, `web-audio-api`, `react`, `tailwindcss`, `framer-motion`
-- [ ] Make sure the **CI badge** is green
-- [ ] **Pin** the repo on your GitHub profile
-- [ ] Choose a **license** (MIT is common for portfolio projects)
-- [ ] Write clean **commit messages** from now on (see [development guide](./development.md#commit-messages-conventional-commits))
+## 6. Demo script (2 minutes)
 
-## 6. Demo script (2 minutes, for interviews or a video)
-
-1. **Hook (10s):** Play a recognizable melody or a chord progression.
-2. **What (20s):** "Every sound is generated live; there are no audio files."
-3. **Features (40s):** Shift octaves (Z/X), toggle sustain and show the soft-glow sustained notes, click and tap keys, drag volume while playing.
-4. **Under the hood (40s):** Open Chrome DevTools → WebAudio panel to show nodes being created and freed; briefly show the layered folder structure.
-5. **Quality (10s):** Run `npm test`: 76 green tests in about 5 seconds.
+1. **Hook (15s):** Play a chord progression with sustain held.
+2. **Voices (20s):** Switch to Electric piano, then Layer grand + strings.
+3. **Real-piano functions (30s):** Split with a left-hand voice; transpose +2; switch to Werckmeister and play a C major chord in two keys to hear the difference.
+4. **Metronome + recorder (25s):** Start the metronome, tap a tempo, record 8 bars, play it back while the keys light up.
+5. **Under the hood (20s):** Chrome DevTools → WebAudio panel (nodes appearing and freeing); the layered folders.
+6. **Quality (10s):** `npm test`: 220 green tests.
 
 ## 7. LinkedIn post template
 
-> 🎹 Weekend project: a piano you play with your computer keyboard, and every note is synthesized live in the browser.
+> 🎹 I built a digital piano that runs in your browser: all four rows of your keyboard become 37 keys, and every sound is synthesized live.
 >
-> What I learned building it:
-> • How sound synthesis works (harmonics + ADSR envelopes) with the Web Audio API
-> • Debugging race conditions that left notes stuck, and pinning them down with regression tests
-> • Structuring a React app in layers so the audio engine is testable on its own
+> What I learned:
+> • Sound synthesis with the Web Audio API: partials, FM, envelopes, convolution reverb
+> • How real pianos work (sostenuto pedal, temperaments, touch curves) and how to model them in code
+> • Scheduling audio on the audio clock so the metronome never drifts
+> • Testing it all: 220 tests with a fake Web Audio API
 >
 > Stack: Next.js · TypeScript · Tailwind · Framer Motion · Vitest
-> 🔗 Live demo: [link]  💻 Code: [link]
+> 🔗 Demo: [link]  💻 Code: [link]
 >
-> #webdev #typescript #nextjs #react
+> #webdev #typescript #nextjs #react #webaudio

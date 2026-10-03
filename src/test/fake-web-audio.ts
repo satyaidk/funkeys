@@ -3,7 +3,7 @@
  *
  * jsdom (the simulated browser used by Vitest) has no audio support, so
  * `new AudioContext()` would throw. This fake implements just the parts the
- * AudioEngine uses and *records* what happens — which nodes were created,
+ * audio engine uses and *records* what happens — which nodes were created,
  * how they were connected, and every value scheduled on an AudioParam — so
  * tests can assert on the engine's behavior without producing sound.
  *
@@ -19,7 +19,7 @@ import { vi } from 'vitest';
 
 /** One call recorded on an AudioParam */
 export interface ParamEvent {
-  type: 'set' | 'linearRamp' | 'target' | 'cancel';
+  type: 'set' | 'linearRamp' | 'exponentialRamp' | 'target' | 'cancel';
   value?: number;
   time: number;
 }
@@ -27,6 +27,8 @@ export interface ParamEvent {
 export class FakeAudioParam {
   value: number;
   events: ParamEvent[] = [];
+  /** Nodes connected to this param (modulation, e.g. LFO → detune) */
+  inputs = new Set<FakeAudioNode>();
 
   constructor(defaultValue: number) {
     this.value = defaultValue;
@@ -43,6 +45,11 @@ export class FakeAudioParam {
     return this;
   }
 
+  exponentialRampToValueAtTime(value: number, time: number) {
+    this.events.push({ type: 'exponentialRamp', value, time });
+    return this;
+  }
+
   setTargetAtTime(value: number, time: number) {
     this.events.push({ type: 'target', value, time });
     this.value = value;
@@ -56,11 +63,12 @@ export class FakeAudioParam {
 }
 
 export class FakeAudioNode {
-  connections = new Set<FakeAudioNode>();
+  connections = new Set<FakeAudioNode | FakeAudioParam>();
   disconnected = false;
 
-  connect(destination: FakeAudioNode) {
+  connect<T extends FakeAudioNode | FakeAudioParam>(destination: T): T {
     this.connections.add(destination);
+    if (destination instanceof FakeAudioParam) destination.inputs.add(this);
     return destination;
   }
 
@@ -78,6 +86,15 @@ export class FakeBiquadFilterNode extends FakeAudioNode {
   type = 'lowpass';
   frequency = new FakeAudioParam(350);
   Q = new FakeAudioParam(1);
+  gain = new FakeAudioParam(0);
+}
+
+export class FakeStereoPannerNode extends FakeAudioNode {
+  pan = new FakeAudioParam(0);
+}
+
+export class FakeConvolverNode extends FakeAudioNode {
+  buffer: FakeAudioBuffer | null = null;
 }
 
 export class FakeDynamicsCompressorNode extends FakeAudioNode {
@@ -88,9 +105,24 @@ export class FakeDynamicsCompressorNode extends FakeAudioNode {
   release = new FakeAudioParam(0.25);
 }
 
-export class FakeOscillatorNode extends FakeAudioNode {
-  type = 'sine';
-  frequency = new FakeAudioParam(440);
+export class FakeAudioBuffer {
+  private channels: Float32Array[];
+
+  constructor(
+    public numberOfChannels: number,
+    public length: number,
+    public sampleRate: number
+  ) {
+    this.channels = Array.from({ length: numberOfChannels }, () => new Float32Array(length));
+  }
+
+  getChannelData(channel: number) {
+    return this.channels[channel];
+  }
+}
+
+/** Shared start/stop bookkeeping for oscillators and buffer sources */
+class FakeScheduledSource extends FakeAudioNode {
   startTime: number | null = null;
   stopTime: number | null = null;
   onended: (() => void) | null = null;
@@ -109,19 +141,34 @@ export class FakeOscillatorNode extends FakeAudioNode {
   }
 }
 
+export class FakeOscillatorNode extends FakeScheduledSource {
+  type = 'sine';
+  frequency = new FakeAudioParam(440);
+  detune = new FakeAudioParam(0);
+}
+
+export class FakeAudioBufferSourceNode extends FakeScheduledSource {
+  buffer: FakeAudioBuffer | null = null;
+}
+
 export class FakeAudioContext {
   /** Every context constructed since the fake was installed */
   static instances: FakeAudioContext[] = [];
 
   /** Seconds on the audio clock — tests move it forward manually */
   currentTime = 0;
+  sampleRate = 8000; // small, so generated buffers stay cheap in tests
   state: 'suspended' | 'running' | 'closed' = 'suspended';
   destination = new FakeAudioNode();
 
   gainNodes: FakeGainNode[] = [];
   oscillators: FakeOscillatorNode[] = [];
   filters: FakeBiquadFilterNode[] = [];
+  panners: FakeStereoPannerNode[] = [];
+  convolvers: FakeConvolverNode[] = [];
   compressors: FakeDynamicsCompressorNode[] = [];
+  bufferSources: FakeAudioBufferSourceNode[] = [];
+  buffers: FakeAudioBuffer[] = [];
 
   constructor() {
     FakeAudioContext.instances.push(this);
@@ -145,10 +192,34 @@ export class FakeAudioContext {
     return node;
   }
 
+  createStereoPanner() {
+    const node = new FakeStereoPannerNode();
+    this.panners.push(node);
+    return node;
+  }
+
+  createConvolver() {
+    const node = new FakeConvolverNode();
+    this.convolvers.push(node);
+    return node;
+  }
+
   createDynamicsCompressor() {
     const node = new FakeDynamicsCompressorNode();
     this.compressors.push(node);
     return node;
+  }
+
+  createBufferSource() {
+    const node = new FakeAudioBufferSourceNode();
+    this.bufferSources.push(node);
+    return node;
+  }
+
+  createBuffer(channels: number, length: number, sampleRate: number) {
+    const buffer = new FakeAudioBuffer(channels, length, sampleRate);
+    this.buffers.push(buffer);
+    return buffer;
   }
 
   resume = vi.fn(() => {
@@ -173,4 +244,11 @@ export function latestAudioContext(): FakeAudioContext {
   const ctx = FakeAudioContext.instances.at(-1);
   if (!ctx) throw new Error('No AudioContext has been created');
   return ctx;
+}
+
+/** Oscillators that are not LFOs or FM modulators, i.e. connected to a gain node */
+export function partialOscillators(ctx: FakeAudioContext): FakeOscillatorNode[] {
+  return ctx.oscillators.filter((osc) =>
+    [...osc.connections].some((c) => c instanceof FakeGainNode && ![...c.connections].some((d) => d instanceof FakeAudioParam))
+  );
 }

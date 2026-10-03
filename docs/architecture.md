@@ -1,275 +1,272 @@
 # Architecture
 
-This document explains how Keyboard Piano is put together: the layers, how data flows when you press a key, where state lives, and why it's designed this way. Read it before the [code walkthrough](./code-walkthrough/) so each file has a place in your head.
+How Keyboard Piano is put together: the layers, how a key press becomes sound, where state lives, and why it's designed this way. Read this before the [code walkthrough](./code-walkthrough/) so each file has a place in your head.
 
 ---
 
 ## 1. What the app does
 
-- Plays piano notes when you press keys on your computer keyboard, click with a mouse, or tap on a touch screen
-- Synthesizes the sound in real time with the **Web Audio API**. No audio files are downloaded.
-- Lights up each key in its own rainbow color while it plays
-- Has controls for **volume**, **octave shift** (−2 to +2) and a **sustain pedal**
-- Works on desktop and phones, respects "reduce motion", and is screen-reader labelled
+A browser-based **digital piano** with the functions of a real one:
+
+- **37 keys (C3–C6)** on all four letter/number rows of the computer keyboard, plus mouse and multi-touch
+- **8 synthesized voices**, **Layer** and **Split** modes
+- **Three pedals**: soft, sostenuto, sustain
+- **Touch sensitivity**, **reverb**, **brilliance**
+- **Transpose**, **master tuning** (A4 415.3–466.2 Hz) and **6 temperaments**
+- **Metronome** with tap tempo, and a **recorder**
+- A hardware-style interface: LCD display, knobs, pads with LEDs, a fallboard and brass pedals
+
+What each function means on a real piano: [Digital piano functions](./concepts/piano-functions.md).
 
 ## 2. Tech stack
 
-| Technology | Version | Why it's used |
+| Technology | Version | Why |
 | --- | --- | --- |
-| [Next.js](https://nextjs.org) (App Router) | 16 | React framework: routing, server rendering, fonts, metadata, production builds |
-| [React](https://react.dev) | 19 | UI as components; hooks for state and side effects |
-| [TypeScript](https://www.typescriptlang.org) | 5 | Catches mistakes at compile time and documents data shapes |
-| [Tailwind CSS](https://tailwindcss.com) | 4 | Utility classes for fast, consistent styling |
-| [Framer Motion](https://motion.dev) | 14 | Spring animations for key presses and entrances |
-| [Web Audio API](https://developer.mozilla.org/docs/Web/API/Web_Audio_API) | browser | Generates sound with oscillators, gains and filters |
-| [Vitest](https://vitest.dev) + [Testing Library](https://testing-library.com) | 5 / 16 | Unit and integration tests |
-| GitHub Actions | — | CI: lint, type-check, test, build on every push |
+| Next.js (App Router) | 16 | Routing, static pre-rendering, fonts, metadata, production builds |
+| React | 19 | Components and hooks |
+| TypeScript (strict) | 5 | Compile-time safety; types document every data shape |
+| Tailwind CSS | 4 | Utility styling with design tokens defined in CSS |
+| Framer Motion | 14 | Spring and layout animations |
+| Web Audio API | browser | Real-time synthesis, effects and scheduling |
+| Vitest + Testing Library | 5 / 16 | 220 unit and integration tests |
+| GitHub Actions | | CI: lint, type-check, test, build |
 
 ## 3. Layered design
 
-The code is split into layers. **Each layer only talks to the layer directly below it.** This is the most important idea in the codebase.
+Each layer only depends on the layers below it.
 
 ```mermaid
 flowchart TB
-    subgraph UI["🎨 UI layer: src/components"]
-        PianoApp --> ControlPanel
-        PianoApp --> NowPlaying
-        PianoApp --> Piano --> PianoKey
+    subgraph UI["🎨 UI: src/components"]
+        PianoApp --> ConsolePanel & Piano & PedalUnit
+        ConsolePanel --> Display & Transport & FunctionTabs
+        FunctionTabs --> Panels["Voice / Layer & split / Sound / Tuning / Metronome panels"]
+        Panels --> Primitives["ui/: Knob, SegmentedControl, Stepper, RadioPads, PadButton, Led"]
     end
 
-    subgraph Hooks["🧠 State & logic layer: src/hooks"]
+    subgraph Hooks["🧠 State: src/hooks"]
         usePiano --> useKeyboardInput
-        usePiano --> useAudioEngine
+        useMetronome
+        useRecorder
+        useAudioEngine
     end
 
-    subgraph Lib["⚙️ Core library: src/lib (no React)"]
-        AudioEngine["audio-engine.ts"]
-        notes["notes.ts"]
-        constants["constants.ts"]
-        dom["dom.ts"]
+    subgraph Lib["⚙️ Core: src/lib (plain TypeScript, no React)"]
+        direction LR
+        music["music/: notes, keyboard-map, tuning"]
+        audio["audio/: audio-engine, synth-voice, voices, dynamics, effects, metronome"]
+        state["note-tracker, settings, constants, dom"]
     end
 
-    subgraph Browser["🌐 Browser APIs"]
-        WebAudio["Web Audio API"]
-        Keyboard["Keyboard / Pointer events"]
-    end
+    Browser["🌐 Web Audio API · keyboard & pointer events · Keyboard Map API"]
 
-    PianoApp --> usePiano
-    useAudioEngine --> AudioEngine
-    usePiano --> notes
-    AudioEngine --> WebAudio
-    useKeyboardInput --> Keyboard
+    PianoApp --> usePiano & useMetronome & useRecorder & useAudioEngine
+    Hooks --> Lib
+    Lib --> Browser
 ```
 
-| Layer | Folder | Knows about | Does **not** know about |
-| --- | --- | --- | --- |
-| UI | `src/components` | Props, hooks, styling | Web Audio, how sound is made |
-| State & logic | `src/hooks` | React state, events, the engine's API | Pixels, colors, layout |
-| Core library | `src/lib` | Music math, Web Audio | React (plain TypeScript) |
-| Types | `src/types` | Data shapes shared by all layers | Behavior |
+| Layer | Knows about | Doesn't know about |
+| --- | --- | --- |
+| **UI** (`components/`) | Props, hooks, styling | How sound is made |
+| **State** (`hooks/`) | React state, events, the engine's API | Pixels and layout |
+| **Core** (`lib/`) | Music math, synthesis, pedal rules | React |
+| **Types** (`types/`) | Shared data shapes | Behavior |
 
-**Why this matters:**
+**Why it matters:**
 
-- **Testability.** `notes.ts` and `audio-engine.ts` are plain TypeScript, so they're tested without rendering any UI.
-- **Replaceability.** You could swap the synthesized engine for real piano samples without touching a single component.
-- **Readability.** When something is wrong with *sound*, you look in `lib/`. When it *looks* wrong, you look in `components/`.
-
-This is called **separation of concerns**, and interviewers often ask about it.
+- **Testable.** 129 of the 220 tests exercise `lib/` directly, with no rendering.
+- **Replaceable.** A sample-based engine could replace the synthesizer without touching a component.
+- **Navigable.** Sound wrong? Look in `lib/audio`. Looks wrong? `components/`. Pedals behaving oddly? `note-tracker.ts`.
 
 ## 4. Folder structure
 
 ```
-keyboard-piano/
-├── .github/workflows/ci.yml   # CI pipeline (lint → typecheck → test → build)
-├── docs/                      # You are here
-├── src/
-│   ├── app/                   # Next.js App Router: the route and page shell
-│   │   ├── layout.tsx         # <html>/<body>, fonts, metadata, MotionProvider
-│   │   ├── page.tsx           # The "/" route: Header + PianoApp
-│   │   ├── globals.css        # Tailwind import, theme tokens, background
-│   │   └── icon.svg           # Browser tab icon
-│   ├── components/
-│   │   ├── PianoApp.tsx       # Client root: calls usePiano(), composes the UI
-│   │   ├── layout/            # Page chrome: Header, MotionProvider
-│   │   ├── piano/             # Keyboard: Piano, PianoKey, NowPlaying
-│   │   └── controls/          # ControlPanel (volume, octave, sustain)
-│   ├── hooks/                 # usePiano, useAudioEngine, useKeyboardInput
-│   ├── lib/                   # audio-engine, notes, constants, dom (no React)
-│   ├── test/                  # Test setup + fake Web Audio API
-│   └── types/                 # Shared TypeScript interfaces
-├── vitest.config.mts          # Test runner config
-└── package.json               # Scripts and dependencies
+src/
+├── app/                      # Next.js route: layout, page, global styles/tokens, icon
+├── components/
+│   ├── PianoApp.tsx          # Client root: creates the hooks, lays out the cabinet
+│   ├── KeyGuide.tsx          # Which computer keys do what
+│   ├── console/              # Control panel
+│   │   ├── ConsolePanel.tsx  # Container: volume, display, recorder, function tabs
+│   │   ├── Display.tsx       # Dot-matrix LCD readout
+│   │   ├── Transport.tsx     # Record / play / stop
+│   │   ├── FunctionTabs.tsx  # Accessible tabs with LED indicators
+│   │   └── panels/           # Voice, LayerSplit, Sound, Tuning, Metronome
+│   ├── piano/                # Piano (keys, fallboard, cheeks), PianoKey, PedalUnit
+│   ├── ui/                   # Design-system primitives: Knob, SegmentedControl, Stepper, RadioPads, PadButton, Led, Field
+│   └── layout/               # MotionProvider
+├── hooks/                    # usePiano, useAudioEngine, useKeyboardInput, useKeyboardLabels, useMetronome, useRecorder
+├── lib/
+│   ├── music/                # notes, keyboard-map, tuning
+│   ├── audio/                # audio-engine, synth-voice, voices, dynamics, effects, metronome
+│   ├── note-tracker.ts       # Held/ringing notes + sustain/sostenuto rules
+│   ├── settings.ts           # Defaults + validation
+│   ├── constants.ts          # Every tunable number
+│   └── dom.ts                # isTypingTarget
+├── test/                     # Test setup + fake Web Audio API
+└── types/                    # Shared domain types
 ```
 
-Tests sit **next to the file they test** (`notes.ts` → `notes.test.ts`), so it's obvious which code is covered.
+Tests sit next to the code they test (`tuning.ts` → `tuning.test.ts`).
 
-## 5. Server vs. Client Components
+## 5. Server vs Client Components
 
-Next.js renders components on the **server** by default. Anything that needs browser features (state, event listeners, Web Audio, animations) must be a **Client Component**, marked with `'use client'` at the top of the file.
+`app/layout.tsx` and `app/page.tsx` are **Server Components**: static HTML, pre-rendered at build time (`○ Static`). Everything interactive lives under the client island `<PianoApp />`, plus the tiny `MotionProvider`.
 
-| File | Type | Why |
-| --- | --- | --- |
-| `app/layout.tsx` | Server | Static HTML shell, fonts, metadata |
-| `app/page.tsx` | Server | Just arranges `Header` and `PianoApp` |
-| `components/PianoApp.tsx` and everything below it | Client | Uses hooks, events, audio, animation |
-| `components/layout/Header.tsx`, `MotionProvider.tsx` | Client | Framer Motion needs the browser |
+## 6. How the hooks fit together
 
-The page stays a Server Component, and the interactive part is one "client island" (`PianoApp`). This keeps the client JavaScript bundle focused. The HTML for the whole page is still pre-rendered at build time (`○ (Static)` in the build output), so it appears instantly.
+```mermaid
+flowchart LR
+    AE[useAudioEngine] -- audio --> P[usePiano]
+    AE -- audio --> M[useMetronome]
+    R[useRecorder] -- capture --> P
+    P -- performer: noteOn / noteOff / setPedal --> R
+    P --> KI[useKeyboardInput]
+```
 
-## 6. Data flow: what happens when you press a key
+- `useAudioEngine` owns the single `AudioEngine`; piano and metronome share it
+- `usePiano` reports every note/pedal action through `onPerformanceAction`; the recorder captures them while recording
+- On playback, the recorder drives the piano through the same `noteOn`/`noteOff`/`setPedal` calls a user would trigger, so keys light up during playback
 
-Here's the full journey of pressing **A** (which plays C4):
+## 7. Data flow: a key press becomes sound
+
+Pressing **Q** (F4) with Layer mode on:
 
 ```mermaid
 sequenceDiagram
     actor User
-    participant Win as window (keydown)
     participant KI as useKeyboardInput
     participant P as usePiano
-    participant AE as useAudioEngine
+    participant T as NoteTracker
     participant E as AudioEngine
-    participant WA as Web Audio
-    participant UI as Piano / PianoKey
+    participant UI as PianoKey / Display
 
-    User->>Win: presses "A"
-    Win->>KI: KeyboardEvent { key: "a", code: "KeyA" }
-    KI->>KI: guards: typing in a text field? repeat? Ctrl/Alt/Meta?
-    KI->>KI: find note for "a" → C4, remember KeyA → C4
-    KI->>P: onNoteStart("C4", 261.63)
-    P->>AE: playNote("C4", 261.63)
-    AE->>E: init() (first time only) + playNote()
-    E->>WA: create 6 oscillators → gains → filter → master → compressor
-    WA-->>User: 🔊 sound
-    P->>P: heldRef.add("C4"); setActiveNoteIds({C4})
-    P-->>UI: re-render with activeNoteIds
-    UI-->>User: 🌈 key C4 glows and moves down
+    User->>KI: keydown { code: "KeyQ" }
+    KI->>KI: guards: typing? repeat? Ctrl/Alt/Cmd? already handled?
+    KI->>P: noteOn("F4")
+    P->>T: press("F4") → true
+    P->>P: resolveVoices(settings, keyIndex) → [grand 1.0, strings 1.0]
+    P->>P: midiToFrequency(65, tuning) → transpose, temperament, A4
+    P->>P: applyTouchCurve(0.72, touch) → velocity
+    P->>E: playNote("F4", 349.2 Hz, { voices, velocity, midi, soft })
+    E->>E: createVoice() × 2 → partials, envelope, filter, panner
+    E-->>User: 🔊
+    P->>UI: re-render: key lit, LCD "♪ F4"
 
-    User->>Win: releases "A"
-    Win->>KI: keyup { code: "KeyA" }
-    KI->>P: onNoteStop("C4")
-    alt sustain OFF
-        P->>E: stopNote("C4") → 0.8s release fade
-    else sustain ON
-        P->>P: move C4 to sustainedNoteIds (keeps ringing)
+    User->>KI: keyup { code: "KeyQ" }
+    KI->>P: noteOff("F4")
+    P->>T: release("F4")
+    alt "stop"
+        P->>E: stopNote("F4") → release envelope
+    else "sustain" (a pedal holds it)
+        P->>UI: key up, soft glow while ringing
     end
-    P-->>UI: re-render, key lifts
 ```
 
-Mouse and touch follow the same path. `PianoKey` calls `onNoteStart(noteId)` on pointer down, and `usePiano` looks up the frequency and calls the same `handleNoteStart`. **There is exactly one code path for starting a note**, whatever the input.
+Mouse, touch and recorder playback call the same `noteOn`/`noteOff`. **There is one code path for starting a note**, whatever the input.
 
-## 7. Where state lives
+## 8. Where state lives
 
-State is deliberately split across three places, each chosen for a reason:
-
-| State | Lives in | Type | Why there |
-| --- | --- | --- | --- |
-| Volume, octave shift, sustain on/off | `usePiano` | `useState` (`config`) | The UI must re-render when they change |
-| Which notes are held / sustained | `usePiano` | `useRef` **and** `useState` | Refs give event handlers the latest value instantly; state triggers re-renders |
-| Physical key → note mapping | `useKeyboardInput` | `useRef<Map>` | Only event handlers need it; it never affects rendering |
-| Playing audio voices (oscillators, gains) | `AudioEngine` | private `Map` | Audio objects aren't UI state; React shouldn't own them |
-| The `AudioEngine` instance | `useAudioEngine` | `useRef` | Must survive re-renders without causing them |
-
-The "ref + mirrored state" pattern is explained in [ADR 0002](./decisions/0002-refs-plus-state-for-note-tracking.md).
+| State | Lives in | Why there |
+| --- | --- | --- |
+| Settings (voice, mode, tuning, effects…) | `usePiano`: `useState` + `settingsRef` | UI re-renders; handlers need the latest value synchronously |
+| Held / ringing notes | `NoteTracker` instance (mirrored to state) | Pure rules, testable without React |
+| Pedal sources (keyboard / screen / playback) | `usePiano`: `pedalSourcesRef` | A pedal is down while *any* source holds it |
+| Physical key → note started | `useKeyboardInput`: `useRef<Map>` | Only handlers need it |
+| Audio voices | `AudioEngine` (private maps) | Audio objects aren't UI state |
+| Metronome tempo, beat | `useMetronome` | Drives the panel and LCD beat lights |
+| Recording events | `useRecorder`: ref | Large, never rendered directly |
 
 ### Note lifecycle
-
-Every note moves through these states:
 
 ```mermaid
 stateDiagram-v2
     [*] --> Idle
-    Idle --> Held: key / pointer down
-    Held --> Releasing: key up (sustain off)
-    Held --> Sustained: key up (sustain on)
-    Sustained --> Held: pressed again
-    Sustained --> Releasing: sustain turned off
-    Held --> Held: replayed by another input (ignored)
-    Releasing --> Held: pressed again during fade (new voice)
-    Releasing --> Idle: 0.8s fade finishes, nodes disconnected
-    Held --> Idle: octave change (15ms fade)
-    Sustained --> Idle: octave change (15ms fade)
+    Idle --> Held: key / pointer / playback down
+    Held --> Releasing: key up, no pedal holds it
+    Held --> Ringing: key up while a pedal holds it
+    Ringing --> Held: pressed again
+    Ringing --> Releasing: pedal(s) lifted
+    Releasing --> Held: pressed during the fade (new voice)
+    Releasing --> Idle: fade ends, nodes disconnected
+    Held --> Idle: octave change / all notes off (15 ms fade)
+    Ringing --> Idle: octave change / all notes off
 ```
 
-- **Held** → in `activeNoteIds`. The key looks pressed.
-- **Sustained** → in `sustainedNoteIds`. The key is up but glows softly.
-- **Releasing** → no longer tracked by React; the engine fades it out and then frees the audio nodes.
+### Pedal sources
 
-## 8. The audio graph
+Space (keyboard) is momentary; the on-screen pedal latches; recorder playback presses pedals too. Each is a **source**, and a pedal is down while any source holds it. So lifting Space doesn't release a pedal you latched on screen.
 
-Each note is built from a small network of Web Audio nodes:
+## 9. The audio graph
 
 ```mermaid
 flowchart LR
-    subgraph Voice["One voice (per note)"]
-        O1["Osc 1× triangle"] --> G1[gain 1.0]
-        O2["Osc 2× sine"] --> G2[gain 0.5]
-        O3["Osc 3× sine"] --> G3[gain 0.25]
-        O4["Osc 4× sine"] --> G4[gain 0.125]
-        O5["Osc 5× sine"] --> G5[gain 0.0625]
-        O6["Osc 6× sine"] --> G6[gain 0.03]
-        G1 & G2 & G3 & G4 & G5 & G6 --> ADSR["Note gain (ADSR envelope)"]
-        ADSR --> LP["Low-pass filter 5 kHz"]
+    subgraph Voice["One voice"]
+        P1["partials (sine/saw)"] --> ENV["envelope (ADSR + natural decay)"]
+        FM["FM modulator"] -. frequency .-> P1
+        LFO["LFO"] -. detune / gain .-> P1
+        ENV --> TRM["tremolo (optional)"] --> LP["low-pass (velocity → brightness)"] --> PAN["stereo pan"]
+        NZ["hammer/pluck noise"] --> PAN
     end
-    LP --> M["Master gain (volume)"]
-    M --> C["Compressor (prevents clipping)"]
-    C --> D(("🔊 speakers"))
+    PAN --> BUS["voice bus"] --> BR["brilliance (high-shelf)"]
+    BR --> MASTER["master volume"]
+    BR --> SEND["reverb send"] --> CONV["convolver"] --> MASTER
+    CLICK["metronome clicks"] --> MASTER
+    MASTER --> COMP["compressor"] --> OUT(("🔊"))
 ```
 
-Voices are created when a note starts and torn down after it fades out. The master gain and compressor are created once and shared. The details are in [Web Audio concepts](./concepts/web-audio.md).
+Details: [Web Audio concepts](./concepts/web-audio.md).
 
-## 9. Input handling rules
+## 10. Input handling rules
 
-Two `keydown` listeners are registered on `window`:
-
-1. **`useKeyboardInput`** handles note keys (`A W S E D F T G Y H U J K O L P ;`)
-2. **`usePiano`** handles control shortcuts (`Z`, `X`, `Space`)
-
-Both apply the same guards so the piano behaves well on a real web page:
+Two kinds of `window` listeners: **notes** (`useKeyboardInput`) and **controls** (`usePiano`: arrows, Space, Shift). Both apply the same rules:
 
 | Situation | Behavior | Why |
 | --- | --- | --- |
-| Typing in a text field | Ignored | Don't play notes while someone types |
-| Focus on the volume slider | **Still plays** | Non-text inputs shouldn't silence the keyboard |
-| `Ctrl` / `Alt` / `Cmd` held | Ignored | Keep Ctrl+Z (undo), Ctrl+C, etc. working |
-| Key auto-repeat (holding a key) | Ignored | One press = one note |
-| Shift changes the character (`;` → `:`) | Correct note still stops | Releases are matched by **physical key** (`event.code`) |
-| Window loses focus while keys held | All held notes released | Prevents stuck notes after Alt+Tab |
-| Space on a keyboard-focused button | Button handles it | Standard accessible behavior |
+| Typing in a text field | Ignored | Don't play notes while typing |
+| Focus on a knob, slider or radio group | Arrows go to the control | Controls `preventDefault()`; global listeners skip `defaultPrevented` events |
+| Ctrl / Alt / Cmd held | Ignored | Keep browser shortcuts working |
+| Auto-repeat | Ignored | One press, one note |
+| Shift held (soft pedal) | Notes still play | Matched by physical `event.code`, not the character |
+| Octave changed mid-press | Key-up stops the right note | Each key remembers the note it started |
+| Window loses focus | Keys and keyboard pedals released | The browser never sends their keyup |
+| Space on a keyboard-focused button | The button gets it | Standard accessibility |
 
-## 10. Rendering and performance
+## 11. Interface design system
 
-- **`React.memo` on `PianoKey`.** When one key changes, only that key re-renders, not all 17.
-- **Stable callbacks (`useCallback`).** Handlers keep the same identity between renders, so memoized keys don't re-render needlessly.
-- **GPU-friendly animation.** Key presses animate `transform` (translate/scale), which browsers animate without re-laying out the page.
-- **CSS variables for sizing.** Key dimensions are computed by CSS `clamp()`, not JavaScript, so resizing the window costs no re-renders. See [ADR 0004](./decisions/0004-css-variables-for-responsive-keys.md).
-- **Audio nodes are freed.** Each finished voice disconnects its nodes so long sessions don't leak memory.
+The UI is designed as **the instrument seen from the bench** ([ADR 0011](./decisions/0011-instrument-as-interface.md)): a plum-velvet stage, satin-ebony cabinet, graphite control surface, walnut cheeks, red felt, brass pedals and an amber LCD. Tokens live in `app/globals.css` as CSS variables, exposed to Tailwind through `@theme inline` (`bg-panel`, `text-led`, `font-lcd`…).
 
-## 11. Accessibility
+| Token | Value | Used for |
+| --- | --- | --- |
+| `--stage` | `#1a1220` | Page background |
+| `--panel` | `#26232c` | Control surface |
+| `--led` | `#ffb547` | LCD text, LEDs, focus ring, active states |
+| `--walnut`, `--felt`, `--brass` | | Cheeks, key felt, pedals |
 
-- Every key is a `<button>` with an `aria-label` (e.g. "C#4") and `aria-pressed`
-- Controls use real `<label>`, `<output>`, `aria-pressed` and `aria-keyshortcuts`
-- "Now playing" is an `aria-live` region, so screen readers announce notes
-- Piano keys are skipped in the Tab order (`tabIndex={-1}`), because the mapped computer keys already play every note
-- `MotionConfig reducedMotion="user"` turns off movement animations for people who set "reduce motion" in their OS
-- Visible focus rings (`focus-visible`) on controls for keyboard users
+**Type:** Instrument Sans (UI and wordmark), DotGothic16 (LCD only).
 
-## 12. Browser compatibility and edge cases
+**Restraint:** the only saturated color is the rainbow key lighting; everything else is quiet hardware. Panels have **fixed heights** on wide screens so the keyboard never jumps when you switch pages.
 
-| Concern | Handling |
-| --- | --- |
-| Autoplay policy (audio blocked until a user gesture) | `AudioContext` is created on the first key press or click, and resumed if suspended |
-| Older Safari (`webkitAudioContext`) | Constructor fallback in `AudioEngine.init()` |
-| Server rendering (no `window`) | Audio code only runs inside event handlers; `init()` also guards `typeof window` |
-| Many notes at once getting too loud | `DynamicsCompressorNode` on the master bus |
-| Clicks/pops when cutting a note | 15ms fade (`QUICK_RELEASE`) instead of an instant stop |
+## 12. Performance
 
-## 13. Known limitations
+- `React.memo` on `PianoKey`: one key press re-renders one key
+- Stable callbacks and a memoized `AudioControls` object
+- Key sizes come from CSS `clamp()` variables, with zero JavaScript on resize
+- Animations use `transform` and `opacity`; the power-on sweep is pure CSS
+- Audio: impulse responses generated once and cached, nodes disconnected after use, 64-voice polyphony cap
 
-These are honest trade-offs, and good things to mention in an interview:
+## 13. Accessibility
 
-- **The sound is synthesized**, so it sounds like an electric piano rather than a grand. Real samples would be more realistic but need downloads ([ADR 0001](./decisions/0001-synthesize-sound-instead-of-samples.md)).
-- **Sustain is a toggle**, not hold-to-sustain like a real pedal.
-- **No voice limit.** Mashing many keys with sustain on creates many oscillators (6 per note).
-- **The key mapping assumes a QWERTY layout** for the visual arrangement. Notes are matched by the character typed (`event.key`).
+- Every key is a labelled button (`aria-label="F#4"`, `aria-pressed`); keys are out of the Tab order because the mapped computer keys play them
+- Real widgets: radio groups, tabs and sliders with roving tabindex and arrow keys
+- The LCD's "now playing" line and step values are `aria-live`
+- Amber `:focus-visible` ring everywhere; mouse clicks don't steal focus from the keyboard
+- `MotionConfig reducedMotion="user"` plus CSS `prefers-reduced-motion` rules
 
-See the [roadmap](./roadmap.md) for ideas to improve these.
+## 14. Known limitations
+
+- **Synthesized, not sampled.** Expressive, but not a concert-grand recording ([ADR 0001](./decisions/0001-synthesize-sound-instead-of-samples.md))
+- **Computer keys have no velocity.** Touch curves still set their loudness; mouse/touch use press position
+- **The sostenuto pedal has no key** (Shift and Space are taken by soft and sustain); it's on screen
+- **Phones scroll the keyboard** rather than shrinking 37 keys below a tappable size ([ADR 0010](./decisions/0010-two-manual-37-key-layout.md))
+- **Settings aren't saved** between visits yet ([roadmap](./roadmap.md))
