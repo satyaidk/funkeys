@@ -1,4 +1,4 @@
-import Header from "@/components/Header";
+import Header from "@/components/layout/Header";
 import PianoApp from "@/components/PianoApp";
 
 export default function Home() {
