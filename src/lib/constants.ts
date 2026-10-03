@@ -113,6 +113,28 @@ export const METRONOME_SCHEDULE_AHEAD = 0.12;
 /** Taps further apart than this (ms) start a new tap-tempo measurement */
 export const TAP_TEMPO_RESET_MS = 2000;
 
+// ─── Looper (Notes page) ─────────────────────────────────────────────────────
+
+/** Playback speeds for practice; 1 is the song's own tempo */
+export const LOOP_SPEEDS = [0.5, 0.75, 1, 1.25] as const;
+
+/**
+ * Share of each note's written length that it actually sounds (a sequencer's
+ * "gate"). The short gap before the next note lets a repeated note strike
+ * again instead of blurring into one long note.
+ */
+export const LOOP_GATE = 0.9;
+
+/** How long (ms) before a pass ends the looper books the next one */
+export const LOOP_SCHEDULE_AHEAD_MS = 100;
+
+/**
+ * If the looper falls further behind than this (ms), e.g. while the tab was
+ * in the background, it restarts the pass from now instead of playing every
+ * missed note at once.
+ */
+export const LOOP_MAX_LATE_MS = 250;
+
 // ─── Key Dimensions ──────────────────────────────────────────────────────────
 
 /** Maximum white key width in px (used on wide screens) */

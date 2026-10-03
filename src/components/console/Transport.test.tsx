@@ -46,15 +46,20 @@ describe('FunctionTabs', () => {
     sound: <p>Sound page</p>,
     tuning: <p>Tuning page</p>,
     metronome: <p>Metronome page</p>,
+    notes: <p>Notes page</p>,
   };
 
   it('shows the first page and selects tabs with the arrow keys', async () => {
     render(<FunctionTabs panels={panels} indicators={{}} />);
     expect(screen.getByRole('tabpanel')).toHaveTextContent('Voice page');
 
+    // Left from the first tab wraps round to the last
+    fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowLeft' });
+    expect(screen.getByRole('tab', { name: 'Notes' })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByText('Notes page')).toBeInTheDocument();
+
     fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowLeft' });
     expect(screen.getByRole('tab', { name: 'Metronome' })).toHaveAttribute('aria-selected', 'true');
-    expect(await screen.findByText('Metronome page')).toBeInTheDocument();
   });
 
   it('connects each tab to its panel', () => {

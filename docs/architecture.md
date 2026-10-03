@@ -14,6 +14,7 @@ A browser-based **digital piano** with the functions of a real one:
 - **Touch sensitivity**, **reverb**, **brilliance**
 - **Transpose**, **master tuning** (A4 415.3–466.2 Hz) and **6 temperaments**
 - **Metronome** with tap tempo, and a **recorder**
+- **Notes page**: famous riffs that loop on the keyboard until stopped, keys lighting up as they play
 - A hardware-style interface: LCD display, knobs, pads with LEDs, a fallboard and brass pedals
 
 What each function means on a real piano: [Digital piano functions](./concepts/piano-functions.md).
@@ -28,7 +29,7 @@ What each function means on a real piano: [Digital piano functions](./concepts/p
 | Tailwind CSS | 4 | Utility styling with design tokens defined in CSS |
 | Framer Motion | 14 | Spring and layout animations |
 | Web Audio API | browser | Real-time synthesis, effects and scheduling |
-| Vitest + Testing Library | 5 / 16 | 220 unit and integration tests |
+| Vitest + Testing Library | 5 / 16 | 257 unit and integration tests |
 | GitHub Actions | | CI: lint, type-check, test, build |
 
 ## 3. Layered design
@@ -40,7 +41,7 @@ flowchart TB
     subgraph UI["🎨 UI: src/components"]
         PianoApp --> ConsolePanel & Piano & PedalUnit
         ConsolePanel --> Display & Transport & FunctionTabs
-        FunctionTabs --> Panels["Voice / Layer & split / Sound / Tuning / Metronome panels"]
+        FunctionTabs --> Panels["Voice / Layer & split / Sound / Tuning / Metronome / Notes panels"]
         Panels --> Primitives["ui/: Knob, SegmentedControl, Stepper, RadioPads, PadButton, Led"]
     end
 
@@ -48,19 +49,20 @@ flowchart TB
         usePiano --> useKeyboardInput
         useMetronome
         useRecorder
+        useLooper
         useAudioEngine
     end
 
     subgraph Lib["⚙️ Core: src/lib (plain TypeScript, no React)"]
         direction LR
-        music["music/: notes, keyboard-map, tuning"]
+        music["music/: notes, keyboard-map, tuning, sequence, riffs, looper"]
         audio["audio/: audio-engine, synth-voice, voices, dynamics, effects, metronome"]
         state["note-tracker, settings, constants, dom"]
     end
 
     Browser["🌐 Web Audio API · keyboard & pointer events · Keyboard Map API"]
 
-    PianoApp --> usePiano & useMetronome & useRecorder & useAudioEngine
+    PianoApp --> usePiano & useMetronome & useRecorder & useLooper & useAudioEngine
     Hooks --> Lib
     Lib --> Browser
 ```
@@ -74,7 +76,7 @@ flowchart TB
 
 **Why it matters:**
 
-- **Testable.** 129 of the 220 tests exercise `lib/` directly, with no rendering.
+- **Testable.** 157 of the 257 tests exercise `lib/` directly, with no rendering.
 - **Replaceable.** A sample-based engine could replace the synthesizer without touching a component.
 - **Navigable.** Sound wrong? Look in `lib/audio`. Looks wrong? `components/`. Pedals behaving oddly? `note-tracker.ts`.
 
@@ -91,13 +93,13 @@ src/
 │   │   ├── Display.tsx       # Dot-matrix LCD readout
 │   │   ├── Transport.tsx     # Record / play / stop
 │   │   ├── FunctionTabs.tsx  # Accessible tabs with LED indicators
-│   │   └── panels/           # Voice, LayerSplit, Sound, Tuning, Metronome
+│   │   └── panels/           # Voice, LayerSplit, Sound, Tuning, Metronome, Notes
 │   ├── piano/                # Piano (keys, fallboard, cheeks), PianoKey, PedalUnit
 │   ├── ui/                   # Design-system primitives: Knob, SegmentedControl, Stepper, RadioPads, PadButton, Led, Field
 │   └── layout/               # MotionProvider
-├── hooks/                    # usePiano, useAudioEngine, useKeyboardInput, useKeyboardLabels, useMetronome, useRecorder
+├── hooks/                    # usePiano, useAudioEngine, useKeyboardInput, useKeyboardLabels, useMetronome, useRecorder, useLooper
 ├── lib/
-│   ├── music/                # notes, keyboard-map, tuning
+│   ├── music/                # notes, keyboard-map, tuning, sequence (melody format), riffs (song library), looper
 │   ├── audio/                # audio-engine, synth-voice, voices, dynamics, effects, metronome
 │   ├── note-tracker.ts       # Held/ringing notes + sustain/sostenuto rules
 │   ├── settings.ts           # Defaults + validation
@@ -122,11 +124,14 @@ flowchart LR
     R[useRecorder] -- capture --> P
     P -- performer: noteOn / noteOff / setPedal --> R
     P --> KI[useKeyboardInput]
+    L[useLooper] -- noteOn / noteOff --> P
+    AE -- start --> L
 ```
 
 - `useAudioEngine` owns the single `AudioEngine`; piano and metronome share it
 - `usePiano` reports every note/pedal action through `onPerformanceAction`; the recorder captures them while recording
 - On playback, the recorder drives the piano through the same `noteOn`/`noteOff`/`setPedal` calls a user would trigger, so keys light up during playback
+- The looper (Notes page) does the same with riffs, booking each note on a fixed timeline so the loop never drifts ([ADR 0012](./decisions/0012-loop-riffs-through-the-piano.md))
 
 ## 7. Data flow: a key press becomes sound
 
@@ -176,6 +181,8 @@ Mouse, touch and recorder playback call the same `noteOn`/`noteOff`. **There is 
 | Audio voices | `AudioEngine` (private maps) | Audio objects aren't UI state |
 | Metronome tempo, beat | `useMetronome` | Drives the panel and LCD beat lights |
 | Recording events | `useRecorder`: ref | Large, never rendered directly |
+| Selected riff, speed, playing | `useLooper` | Drives the Notes page and its tab LED |
+| Booked loop timers, keys the loop holds | `Looper` instance (private) | Timing rules, testable without React |
 
 ### Note lifecycle
 
@@ -270,3 +277,4 @@ The UI is designed as **the instrument seen from the bench** ([ADR 0011](./decis
 - **The sostenuto pedal has no key** (Shift and Space are taken by soft and sustain); it's on screen
 - **Phones scroll the keyboard** rather than shrinking 37 keys below a tappable size ([ADR 0010](./decisions/0010-two-manual-37-key-layout.md))
 - **Settings aren't saved** between visits yet ([roadmap](./roadmap.md))
+- **Loops run on JavaScript timers**, not the audio clock, so a note can be a few ms late when the page is busy, and a loop restarts when you return to a background tab ([ADR 0012](./decisions/0012-loop-riffs-through-the-piano.md))

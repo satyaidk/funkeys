@@ -5,10 +5,10 @@ A file-by-file explanation of the whole codebase. Read it **in order**: each par
 | # | Part | Files |
 | --- | --- | --- |
 | 1 | [Types](./01-types.md) | `types/index.ts` |
-| 2 | [Music](./02-music.md) | `lib/music/notes.ts`, `keyboard-map.ts`, `tuning.ts` |
+| 2 | [Music](./02-music.md) | `lib/music/notes.ts`, `keyboard-map.ts`, `tuning.ts`, `sequence.ts`, `riffs.ts`, `looper.ts` |
 | 3 | [Audio](./03-audio.md) | `lib/audio/voices.ts`, `dynamics.ts`, `effects.ts`, `synth-voice.ts`, `audio-engine.ts`, `metronome.ts` |
 | 4 | [Core state](./04-core-state.md) | `lib/note-tracker.ts`, `settings.ts`, `constants.ts`, `dom.ts` |
-| 5 | [Hooks](./05-hooks.md) | `hooks/useAudioEngine.ts`, `useKeyboardInput.ts`, `useKeyboardLabels.ts`, `usePiano.ts`, `useMetronome.ts`, `useRecorder.ts` |
+| 5 | [Hooks](./05-hooks.md) | `hooks/useAudioEngine.ts`, `useKeyboardInput.ts`, `useKeyboardLabels.ts`, `usePiano.ts`, `useMetronome.ts`, `useRecorder.ts`, `useLooper.ts` |
 | 6 | [Components](./06-components.md) | `components/**`: piano, console, panels, ui primitives |
 | 7 | [App shell & config](./07-app-and-config.md) | `app/**`, `next.config.ts`, `tsconfig.json`, ESLint, Vitest, CI |
 

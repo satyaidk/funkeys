@@ -27,6 +27,7 @@ ADRs aren't rewritten after acceptance. When a decision changes, a **new ADR sup
 | [0009](./0009-data-driven-voice-recipes.md) | Describe instrument voices as data-driven recipes | Accepted |
 | [0010](./0010-two-manual-37-key-layout.md) | A 37-key two-manual layout, scrolling on phones | Accepted |
 | [0011](./0011-instrument-as-interface.md) | Design the interface as the instrument itself | Accepted |
+| [0012](./0012-loop-riffs-through-the-piano.md) | Loop riffs through the piano, booked on a drift-free timeline | Accepted |
 
 ## Writing a new ADR
 

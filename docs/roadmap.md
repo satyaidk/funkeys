@@ -12,7 +12,8 @@ What's done, and ideas to build next, ordered roughly by difficulty. **Build the
 - Touch curves, reverb rooms, brilliance
 - Transpose, master tuning, 6 temperaments
 - Metronome with tap tempo; performance recorder
-- Hardware-style UI with a design system, 220 tests, CI
+- Notes page: famous riffs that loop on the keyboard, with practice speed
+- Hardware-style UI with a design system, 257 tests, CI
 
 ## 🟢 Beginner
 

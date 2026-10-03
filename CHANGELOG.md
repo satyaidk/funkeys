@@ -17,12 +17,14 @@ The digital piano release: real-piano functions, a bigger keyboard and a redesig
 - **Transpose** (±12, ↑/↓), **master tuning** (A4 415.3–466.2 Hz) and **six temperaments** with selectable key
 - **Metronome**: 30–240 BPM with tempo markings, 2/4 to 6/8, accents, tap tempo, click volume, beat lights
 - **Recorder**: record, play back (keys light up), stop, delete
+- **Notes page** (next to Metronome): famous riffs that loop on the keyboard until you stop them, keys lighting up as they play: Tokyo Drift, Lean On and Taki Taki (DJ Snake), Megalovania, Axel F, Seven Nation Army, He's a Pirate, Für Elise; practice speed 50–125%
+- Melody text format and parser (`lib/music/sequence.ts`), song library (`riffs.ts`), drift-free `Looper` scheduler and `useLooper` hook
 - Sound realism: string inharmonicity, natural decay while held, velocity-dependent brightness, hammer/pluck noise, stereo spread, 64-voice polyphony with voice stealing
 - Redesigned **hardware-style interface**: dot-matrix LCD, knobs, LED pads, function tabs, fallboard wordmark, walnut cheeks and brass pedals; one power-on light sweep
 - UI primitives in `components/ui/`: `Knob`, `SegmentedControl`, `RadioPads`, `Stepper`, `PadButton`, `Led`, `Field`
 - Pure `NoteTracker` pedal state machine and validated settings (`lib/settings.ts`)
-- 144 new tests (220 total)
-- Docs: digital-piano functions guide with sources, a seven-part code walkthrough, ADRs 0006–0011
+- 181 new tests (257 total)
+- Docs: digital-piano functions guide with sources, a seven-part code walkthrough, ADRs 0006–0012
 
 ### Changed
 - Octave shift moved to ← / →; sustain is now held (Space) rather than toggled

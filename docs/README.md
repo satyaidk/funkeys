@@ -14,7 +14,7 @@ How the project works, from the big picture down to every file, and the concepts
 | 6 | [React & Next.js patterns](./concepts/react-patterns.md) | The hooks and UI patterns used everywhere |
 | 7 | [Code walkthrough](./code-walkthrough/) (parts 1 → 7) | Every file and the reasoning behind it |
 | 8 | [Architecture Decision Records](./decisions/) | *Why* key choices were made |
-| 9 | [Testing](./testing.md) | How the 220 tests work, and how to write more |
+| 9 | [Testing](./testing.md) | How the 257 tests work, and how to write more |
 | 10 | [Development guide](./development.md) | Git workflow, conventions, adding features, deploying |
 | 11 | [Roadmap](./roadmap.md) | Features to build next |
 | 12 | [Portfolio & interview guide](./portfolio-guide.md) | Resume bullets, interview stories, demo script |
@@ -39,7 +39,7 @@ docs/
 │   ├── 05-hooks.md
 │   ├── 06-components.md
 │   └── 07-app-and-config.md
-├── decisions/                   ← 11 Architecture Decision Records
+├── decisions/                   ← 12 Architecture Decision Records
 ├── testing.md
 ├── development.md
 ├── roadmap.md
@@ -56,6 +56,7 @@ docs/
 | How the pedals work | [Piano functions](./concepts/piano-functions.md#the-three-pedals), [note-tracker](./code-walkthrough/04-core-state.md#note-trackerts) |
 | How temperaments are calculated | [Music theory §8](./concepts/music-theory.md#8-temperaments) |
 | Why the metronome doesn't drift | [ADR 0007](./decisions/0007-lookahead-metronome-scheduler.md) |
+| How the Notes page loops songs | [Music walkthrough: looper](./code-walkthrough/02-music.md#looperts), [ADR 0012](./decisions/0012-loop-riffs-through-the-piano.md) |
 | How the UI controls are built | [Components: ui/](./code-walkthrough/06-components.md#ui-the-design-system-primitives) |
 | The visual design decisions | [ADR 0011](./decisions/0011-instrument-as-interface.md) |
 | Where to put new code | [Development §4](./development.md#where-new-code-goes) |

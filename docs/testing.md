@@ -1,6 +1,6 @@
 # Testing
 
-**220 automated tests** across 23 files, running in about 15 seconds with `npm test`, and on every push via CI.
+**257 automated tests** across 27 files, running in about 15 seconds with `npm test`, and on every push via CI.
 
 ---
 
@@ -37,7 +37,7 @@ npm run validate         # lint + typecheck + test + build (what CI runs)
              ╱ ╲
             ╱E2E╲          (next: Playwright, see roadmap)
            ╱─────╲
-          ╱ Integ. ╲       PianoApp, usePiano, useRecorder, useMetronome
+          ╱ Integ. ╲       PianoApp, usePiano, useRecorder, useMetronome, useLooper
          ╱───────────╲
         ╱    Unit      ╲   lib/**, ui primitives, piano & console components
        ╱─────────────────╲
@@ -49,6 +49,9 @@ npm run validate         # lint + typecheck + test + build (what CI runs)
 | `notes.test.ts` | MIDI ↔ id conversions, frequencies, colors | 9 |
 | `keyboard-map.test.ts` | 37 keys, contiguous C3–C6, unique codes, black-key gaps, octave shift | 7 |
 | `tuning.test.ts` | Master tuning, transpose, temperament invariants (pure 5/4 and 3/2) | 10 |
+| `sequence.test.ts` | Melody format: note values, dots, rests, chords, bar lines, error messages | 8 |
+| `riffs.test.ts` | Every riff parses, fits C3–C6 and fills whole bars; lookup, bar lengths | 12 |
+| `looper.test.ts` | Note timing and gate, looping, no drift after a late timer, recovery, stop, re-strikes | 8 |
 | **lib/audio** | | |
 | `voices.test.ts` | Every recipe valid; single/layer/split routing | 15 |
 | `dynamics.test.ts` | Touch curves, position velocity, velocity → gain | 6 |
@@ -64,6 +67,7 @@ npm run validate         # lint + typecheck + test + build (what CI runs)
 | `usePiano.test.tsx` | Keyboard play, both manuals, shortcuts, pedals, layer/split, recorder events | 26 |
 | `useRecorder.test.ts` | Record timing, playback, stop, clear | 8 |
 | `useMetronome.test.ts` | Start, beat lights, tempo clamp, time signatures, tap | 6 |
+| `useLooper.test.ts` | Start, loop, stop, switching riffs, speed, octave shift, unmount | 8 |
 | **components** | | |
 | `Piano.test.tsx` | 37 keys, labels (incl. layout map), pointer input, split labels | 9 |
 | `PedalUnit.test.tsx` | Order, pressed state, toggle | 4 |
@@ -72,7 +76,7 @@ npm run validate         # lint + typecheck + test + build (what CI runs)
 | `Knob.test.tsx` | ARIA, keyboard steps, drag, handled keys | 4 |
 | `SegmentedControl.test.tsx` | Radio semantics, roving tabindex, arrows; RadioPads | 7 |
 | `Stepper.test.tsx` | Single step, hold-to-repeat, keyboard activation, limits | 6 |
-| `PianoApp.test.tsx` | Everything wired together | 8 |
+| `PianoApp.test.tsx` | Everything wired together, including a Notes loop | 9 |
 
 ## 5. Anatomy of a test
 
@@ -120,7 +124,8 @@ Three techniques keep time-based code deterministic:
 | --- | --- |
 | **Fake audio clock**: set `ctx.currentTime` by hand | Envelopes, releases, the polyphony limit |
 | **Fake clock object** implementing `MetronomeClock` | The metronome scheduler, in isolation |
-| **`vi.useFakeTimers()`** + `vi.advanceTimersByTime(ms)` | Recorder playback, Stepper hold-to-repeat, beat lights |
+| **`vi.useFakeTimers()`** + `vi.advanceTimersByTime(ms)` | Recorder playback, the looper, Stepper hold-to-repeat, beat lights |
+| **`vi.setSystemTime()`** mid-test | Simulating a busy main thread: timers fire late, and the looper must stay on its timeline |
 
 ```ts
 act(() => result.current.play(performer));
@@ -128,7 +133,9 @@ act(() => vi.advanceTimersByTime(100));
 expect(performer.noteOn).toHaveBeenCalledWith('C4', 0.8);
 ```
 
-The recorder uses `Date.now()` rather than `performance.now()` precisely so fake timers control it.
+The recorder and the looper use `Date.now()` rather than `performance.now()` precisely so fake timers control it.
+
+> **Fake-timer detail:** a zero-delay `setTimeout` created *inside* another timer runs 1 ms later under fake timers. Assert on behavior ("one fresh start, not a burst") rather than on that exact millisecond.
 
 ## 8. Testing components like a user
 

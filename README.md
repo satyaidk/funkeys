@@ -8,7 +8,7 @@ Eight voices, layer and split modes, three pedals, historical tunings, a metrono
 No audio files: every note is generated in real time with the Web Audio API.
 
 [![CI](https://github.com/satyaidk/expert-eureka/actions/workflows/ci.yml/badge.svg)](https://github.com/satyaidk/expert-eureka/actions/workflows/ci.yml)
-![Tests](https://img.shields.io/badge/tests-220%20passing-brightgreen?logo=vitest&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-257%20passing-brightgreen?logo=vitest&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=black)
@@ -30,23 +30,24 @@ Keyboard Piano turns all four letter and number rows of your keyboard into a pia
 
 It recreates the functions of real digital pianos (Yamaha Clavinova, Roland FP-30X), researched from their manuals: voices, layer and split, sustain/sostenuto/soft pedals, touch sensitivity, reverb, transpose, master tuning and historical temperaments, plus a metronome and a performance recorder. The interface is designed as the instrument itself: a backlit LCD, knobs, LED pads, a lacquered fallboard and brass pedals.
 
-The project is built the way production software is: a layered architecture, 220 automated tests, CI on every push, and full documentation including 11 Architecture Decision Records.
+The project is built the way production software is: a layered architecture, 257 automated tests, CI on every push, and full documentation including 12 Architecture Decision Records.
 
 ## Features
 
 | | Feature | Details |
-| --- | --- | --- |
-| 🎹 | **37-key keyboard** | Two piano-shaped manuals on the computer keyboard; mouse and multi-touch; octave shift to reach C1–C8 |
-| 🎻 | **8 voices** | Concert grand, Bright grand, Electric piano, Harpsichord, Drawbar organ, String ensemble, Vibraphone, Celesta |
-| 🎚️ | **Layer & split** | Two voices on every key with a balance knob, or a separate left-hand voice with a movable split point |
-| 🦶 | **Three pedals** | Soft (una corda), sostenuto and sustain, with the real-piano rules |
-| ✋ | **Touch sensitivity** | Light / Medium / Heavy / Fixed; mouse and touch velocity from press position |
-| 🏛️ | **Reverb & brilliance** | Room, concert hall or cathedral with depth; mellow, normal or bright tone |
-| 🎼 | **Tuning** | Transpose ±12, master tuning A4 = 415.3–466.2 Hz, six temperaments (Equal, Pure major, Pythagorean, Meantone, Werckmeister III, Kirnberger III) in any key |
-| ⏱️ | **Metronome** | 30–240 BPM, 2/4 to 6/8 with accents, tap tempo, sample-accurate timing |
-| ⏺️ | **Recorder** | Record a take and play it back through the instrument, keys lighting up |
-| 🌈 | **Visual feedback** | Every note has its own color; sustained notes glow softly; the LCD shows what's sounding |
-| ♿ | **Accessible** | Screen-reader labels, keyboard-operable controls (radio groups, tabs, sliders), reduced-motion support |
+| |--- | --- | --- |
+| | **37-key keyboard** | Two piano-shaped manuals on the computer keyboard; mouse and multi-touch; octave shift to reach C1–C8 |
+| | **8 voices** | Concert grand, Bright grand, Electric piano, Harpsichord, Drawbar organ, String ensemble, Vibraphone, Celesta |
+| | **Layer & split** | Two voices on every key with a balance knob, or a separate left-hand voice with a movable split point |
+| | **Three pedals** | Soft (una corda), sostenuto and sustain, with the real-piano rules |
+| | **Touch sensitivity** | Light / Medium / Heavy / Fixed; mouse and touch velocity from press position |
+| | **Reverb & brilliance** | Room, concert hall or cathedral with depth; mellow, normal or bright tone |
+| | **Tuning** | Transpose ±12, master tuning A4 = 415.3–466.2 Hz, six temperaments (Equal, Pure major, Pythagorean, Meantone, Werckmeister III, Kirnberger III) in any key |
+| | **Metronome** | 30–240 BPM, 2/4 to 6/8 with accents, tap tempo, sample-accurate timing |
+| | **Recorder** | Record a take and play it back through the instrument, keys lighting up |
+| | **Notes** | Famous riffs (Tokyo Drift, Lean On, Taki Taki, Megalovania, Für Elise…) loop on the keyboard until you stop them, at 50–125% speed |
+| | **Visual feedback** | Every note has its own color; sustained notes glow softly; the LCD shows what's sounding |
+| | **Accessible** | Screen-reader labels, keyboard-operable controls (radio groups, tabs, sliders), reduced-motion support |
 
 ### Sound engine
 
@@ -139,9 +140,9 @@ src/
 │   ├── console/          # Control panel: LCD, recorder, function tabs and pages
 │   ├── piano/            # Keyboard, keys, pedals
 │   └── ui/               # Design-system primitives
-├── hooks/                # usePiano, useAudioEngine, useMetronome, useRecorder, …
+├── hooks/                # usePiano, useAudioEngine, useMetronome, useRecorder, useLooper, …
 ├── lib/
-│   ├── music/            # Notes, keyboard map, tuning and temperaments
+│   ├── music/            # Notes, keyboard map, tuning and temperaments, song loops
 │   ├── audio/            # Engine, voice synthesis, voices, effects, metronome
 │   └── note-tracker.ts   # Pedal rules (pure state machine)
 ├── test/                 # Test setup and fake Web Audio API
@@ -164,7 +165,7 @@ docs/                     # Architecture, concepts, code walkthrough, ADRs, guid
 
 ## Testing
 
-220 unit and integration tests cover the music math, synthesis graph, pedal rules, metronome scheduling, recorder, hooks and UI components. Audio is tested against a hand-written **fake Web Audio API** that records every node, connection and scheduled value; time-based code uses fake clocks and timers.
+257 unit and integration tests cover the music math, synthesis graph, pedal rules, metronome and loop scheduling, recorder, hooks and UI components. Audio is tested against a hand-written **fake Web Audio API** that records every node, connection and scheduled value; time-based code uses fake clocks and timers.
 
 ```bash
 npm test
@@ -182,7 +183,7 @@ The [`docs/`](docs/README.md) folder explains the project from the big picture d
 | [Architecture](docs/architecture.md) | Layers, data flow, state, audio graph, design system |
 | [Music theory](docs/concepts/music-theory.md) · [Web Audio](docs/concepts/web-audio.md) · [React patterns](docs/concepts/react-patterns.md) | The concepts behind the code |
 | [Code walkthrough](docs/code-walkthrough/) | Every file explained, in seven parts |
-| [Decision records](docs/decisions/) | 11 ADRs: why key choices were made |
+| [Decision records](docs/decisions/) | 12 ADRs: why key choices were made |
 | [Testing](docs/testing.md) · [Development](docs/development.md) · [Roadmap](docs/roadmap.md) | Working on the project |
 
 ## Roadmap

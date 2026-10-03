@@ -7,6 +7,7 @@ PianoApp
  ├─ useAudioEngine ─────┬──► usePiano ──► useKeyboardInput
  │                      └──► useMetronome
  ├─ useRecorder ◄───────────► usePiano   (capture ◄, playback ►)
+ ├─ useLooper ──────────────► usePiano   (loops riffs from the Notes page)
  └─ useKeyboardLabels
 ```
 
@@ -18,6 +19,7 @@ PianoApp
 | [`usePiano`](#usepiano) | Settings, notes, pedals, voice routing, shortcuts |
 | [`useMetronome`](#usemetronome) | Tempo, beat lights, tap tempo |
 | [`useRecorder`](#userecorder) | Record and replay performances |
+| [`useLooper`](#uselooper) | Notes page: pick a riff, loop it, change its speed |
 
 ---
 
@@ -259,3 +261,42 @@ const play = useCallback((performer: Performer) => {
 ### 🧪 Try it yourself
 
 Add **"Export as JSON"**: a button that downloads `eventsRef.current` as a file. Then add "Import" to load one back. That's the first step toward MIDI file export.
+
+---
+
+## `useLooper`
+
+### Purpose
+
+The state behind the **Notes** page: which riff is selected, the practice speed, and whether it's playing. It drives a `Looper` ([Part 2](./02-music.md#looperts)) that plays the riff on the piano.
+
+```ts
+const looper = useLooper({ audio, performer: piano, octaveShift: piano.settings.octaveShift });
+looper.select('lean-on');   // switches straight away if a riff is playing
+looper.setSpeed(0.5);       // restarts the loop at half tempo
+looper.toggle();            // play / stop
+```
+
+### Code explained
+
+```ts
+// The looper's timers outlive renders, so they read the latest values from refs
+useEffect(() => {
+  performerRef.current = performer;
+  octaveShiftRef.current = octaveShift;
+}, [performer, octaveShift]);
+
+looperRef.current ??= new Looper(
+  { noteOn: (id) => performerRef.current.noteOn(id), noteOff: (id) => performerRef.current.noteOff(id) },
+  (midi) => midiToNoteId(midi + 12 * octaveShiftRef.current)   // follow the octave shift
+);
+```
+
+- **Created on first use, inside an event handler.** Building the `Looper` during render would hand it functions that read refs, which the React Compiler lint rule (`react-hooks/refs`) rejects, so it's made the first time you press Play (the same way `useMetronome` makes its scheduler).
+- **Follows the octave shift** so the loop always lights keys you can see. It's read when each note starts, so shifting mid-loop moves the next note.
+- **`audio.start()` in `start()`:** the first note plays from a timer, not from the click, and Safari only lets audio start inside the click itself.
+- **`riffs` option:** the hook takes the library as an optional input (default `RIFFS`), so tests pass two tiny riffs with round numbers (120 BPM = 500 ms a beat).
+
+### 🧪 Try it yourself
+
+Show the looping riff on the LCD: pass `looper.playing` and `looper.riff.title` into `Display` and print "Loop: Tokyo Drift" next to the recorder status. Add a case to `Display.test.tsx`.

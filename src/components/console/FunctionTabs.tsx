@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Led from '../ui/Led';
 import { preventMouseFocus } from '../ui/PadButton';
 
-export type TabId = 'voice' | 'layer' | 'sound' | 'tuning' | 'metronome';
+export type TabId = 'voice' | 'layer' | 'sound' | 'tuning' | 'metronome' | 'notes';
 
 const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: 'voice', label: 'Voice' },
@@ -23,6 +23,7 @@ const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: 'sound', label: 'Sound' },
   { id: 'tuning', label: 'Tuning' },
   { id: 'metronome', label: 'Metronome' },
+  { id: 'notes', label: 'Notes' },
 ];
 
 interface FunctionTabsProps {

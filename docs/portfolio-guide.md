@@ -8,7 +8,7 @@ How to present this project on your resume, GitHub, LinkedIn and in interviews.
 
 ## 1. Elevator pitch (30 seconds)
 
-> "I built a browser-based digital piano. All four rows of your computer keyboard become a 37-key, two-manual keyboard, and every sound is synthesized live with the Web Audio API. There are eight voices, from a concert grand with string inharmonicity to an FM electric piano. I researched real digital pianos and implemented their functions: layer and split, all three pedals including sostenuto, touch curves, reverb, master tuning and historical temperaments, a metronome scheduled on the audio clock, and a recorder. It's Next.js and TypeScript with 220 tests and CI, and the interface is designed to look and behave like the instrument itself."
+> "I built a browser-based digital piano. All four rows of your computer keyboard become a 37-key, two-manual keyboard, and every sound is synthesized live with the Web Audio API. There are eight voices, from a concert grand with string inharmonicity to an FM electric piano. I researched real digital pianos and implemented their functions: layer and split, all three pedals including sostenuto, touch curves, reverb, master tuning and historical temperaments, a metronome scheduled on the audio clock, a recorder, and famous riffs that loop on the keyboard so you can play along. It's Next.js and TypeScript with 257 tests and CI, and the interface is designed to look and behave like the instrument itself."
 
 ## 2. Resume bullets
 
@@ -18,7 +18,7 @@ Pick 3–4. Each is **action + what + how + result**:
 - Implemented **real digital-piano functions** researched from Yamaha and Roland manuals: layer/split modes, **sustain, sostenuto and soft pedals**, touch curves, transpose, master tuning (415–466 Hz) and **six historical temperaments**
 - Designed a **layered architecture** (UI → hooks → framework-free core) with pedal logic as a **pure state machine** and data-driven voice recipes, documented in **11 Architecture Decision Records**
 - Engineered a **sample-accurate metronome** with a lookahead scheduler on the audio clock, immune to main-thread jitter
-- Wrote **220 unit and integration tests** (Vitest, React Testing Library) using a custom **fake Web Audio API** and fake clocks; automated lint/typecheck/test/build with **GitHub Actions**
+- Wrote **257 unit and integration tests** (Vitest, React Testing Library) using a custom **fake Web Audio API** and fake clocks; automated lint/typecheck/test/build with **GitHub Actions**
 - Built an **accessible hardware-style UI design system** (knobs, steppers, radio groups, tabs with ARIA roles and keyboard support) with **Framer Motion**, responsive from phones to desktop
 
 **Skills line:** TypeScript · React 19 · Next.js 16 · Tailwind CSS 4 · Framer Motion · Web Audio API · DSP basics · Vitest · React Testing Library · GitHub Actions · WAI-ARIA accessibility
@@ -76,7 +76,7 @@ Pick 3–4. Each is **action + what + how + result**:
 3. **Real-piano functions (30s):** Split with a left-hand voice; transpose +2; switch to Werckmeister and play a C major chord in two keys to hear the difference.
 4. **Metronome + recorder (25s):** Start the metronome, tap a tempo, record 8 bars, play it back while the keys light up.
 5. **Under the hood (20s):** Chrome DevTools → WebAudio panel (nodes appearing and freeing); the layered folders.
-6. **Quality (10s):** `npm test`: 220 green tests.
+6. **Quality (10s):** `npm test`: 257 green tests.
 
 ## 7. LinkedIn post template
 
@@ -86,7 +86,7 @@ Pick 3–4. Each is **action + what + how + result**:
 > • Sound synthesis with the Web Audio API: partials, FM, envelopes, convolution reverb
 > • How real pianos work (sostenuto pedal, temperaments, touch curves) and how to model them in code
 > • Scheduling audio on the audio clock so the metronome never drifts
-> • Testing it all: 220 tests with a fake Web Audio API
+> • Testing it all: 257 tests with a fake Web Audio API
 >
 > Stack: Next.js · TypeScript · Tailwind · Framer Motion · Vitest
 > 🔗 Demo: [link]  💻 Code: [link]
