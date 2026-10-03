@@ -5,13 +5,13 @@
  * ┌──────────┬──────────────────────────────┬────────────┐
  * │ Volume   │ LCD display                  │ Recorder   │
  * ├──────────┴──────────────────────────────┴────────────┤
- * │ Voice │ Layer & split │ Sound │ Tuning │ Metronome    │
+ * │ Voice │ Layer & split │ Sound │ Tuning │ Metronome │ Notes │
  * │ …selected function page…                             │
  * └──────────────────────────────────────────────────────┘
  * ```
  *
- * A container component: it receives the piano, metronome and recorder
- * controllers and hands each panel only the values and callbacks it needs.
+ * A container component: it receives the piano, metronome, recorder and
+ * looper controllers and hands each panel only the values and callbacks it needs.
  */
 
 'use client';
@@ -20,6 +20,7 @@ import { DEFAULT_SETTINGS } from '@/lib/settings';
 import { usePiano } from '@/hooks/usePiano';
 import { useMetronome } from '@/hooks/useMetronome';
 import { useRecorder } from '@/hooks/useRecorder';
+import { useLooper } from '@/hooks/useLooper';
 import Knob from '../ui/Knob';
 import PadButton from '../ui/PadButton';
 import Display from './Display';
@@ -30,16 +31,18 @@ import LayerSplitPanel from './panels/LayerSplitPanel';
 import SoundPanel from './panels/SoundPanel';
 import TuningPanel from './panels/TuningPanel';
 import MetronomePanel from './panels/MetronomePanel';
+import NotesPanel from './panels/NotesPanel';
 
 interface ConsolePanelProps {
   piano: ReturnType<typeof usePiano>;
   metronome: ReturnType<typeof useMetronome>;
   recorder: ReturnType<typeof useRecorder>;
+  looper: ReturnType<typeof useLooper>;
 }
 
 const percent = (v: number) => `${Math.round(v * 100)}%`;
 
-export default function ConsolePanel({ piano, metronome, recorder }: ConsolePanelProps) {
+export default function ConsolePanel({ piano, metronome, recorder, looper }: ConsolePanelProps) {
   const { settings, updateSettings, notes } = piano;
 
   const soundingNotes = notes
@@ -112,6 +115,7 @@ export default function ConsolePanel({ piano, metronome, recorder }: ConsolePane
             sound: soundChanged,
             tuning: tuningChanged,
             metronome: metronome.running,
+            notes: looper.playing,
           }}
           actions={
             <PadButton onClick={piano.releaseAll} className="px-3 py-1.5 text-xs text-ink-muted hover:text-ink">
@@ -137,6 +141,17 @@ export default function ConsolePanel({ piano, metronome, recorder }: ConsolePane
                 onTimeSignatureChange={metronome.setTimeSignature}
                 onVolumeChange={metronome.setVolume}
                 onTap={metronome.tap}
+              />
+            ),
+            notes: (
+              <NotesPanel
+                riffs={looper.riffs}
+                riffId={looper.riffId}
+                speed={looper.speed}
+                playing={looper.playing}
+                onToggle={looper.toggle}
+                onSelect={looper.select}
+                onSpeedChange={looper.setSpeed}
               />
             ),
           }}

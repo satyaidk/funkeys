@@ -11,7 +11,7 @@ components/
 │   ├── Display.tsx           ← dot-matrix LCD
 │   ├── Transport.tsx         ← record / play / stop
 │   ├── FunctionTabs.tsx      ← accessible tabs with LEDs
-│   └── panels/               ← VoicePanel, LayerSplitPanel, SoundPanel, TuningPanel, MetronomePanel
+│   └── panels/               ← VoicePanel, LayerSplitPanel, SoundPanel, TuningPanel, MetronomePanel, NotesPanel
 ├── piano/
 │   ├── Piano.tsx             ← fallboard, felt, cheeks, 37 keys
 │   ├── PianoKey.tsx          ← one key
@@ -158,7 +158,7 @@ WAI-ARIA tabs (`tablist`/`tab`/`tabpanel`, `aria-controls`, arrow keys). Each ta
 
 ## `console/ConsolePanel.tsx`
 
-The **container**: receives the `piano`, `metronome` and `recorder` controllers and passes each panel only what it needs. Computes derived values: `soundingNotes`, `tuningChanged` and `soundChanged` (for the tab LEDs).
+The **container**: receives the `piano`, `metronome`, `recorder` and `looper` controllers and passes each panel only what it needs. Computes derived values: `soundingNotes`, `tuningChanged` and `soundChanged` (for the tab LEDs).
 
 ## `console/panels/*`
 
@@ -169,6 +169,7 @@ The **container**: receives the `piano`, `metronome` and `recorder` controllers 
 | `SoundPanel` | Reverb room + depth knob, brilliance, touch curve |
 | `TuningPanel` | Transpose stepper, master tuning stepper (+ reset), temperament pads, temperament key stepper |
 | `MetronomePanel` | Start/stop pad + beat lights, tempo stepper + slider + marking, time signature, tap, click volume |
+| `NotesPanel` | Play loop / Stop loop pad with the tempo, speed (50–125%), song pads (`RadioPads`); the Notes tab LED lights while a loop plays |
 
 Panels are **presentational**: props in, callbacks out.
 
@@ -181,6 +182,7 @@ const audio = useAudioEngine();
 const recorder = useRecorder();
 const piano = usePiano({ audio, onPerformanceAction: recorder.capture });
 const metronome = useMetronome(audio);
+const looper = useLooper({ audio, performer: piano, octaveShift: piano.settings.octaveShift });
 const labels = useKeyboardLabels();
 ```
 

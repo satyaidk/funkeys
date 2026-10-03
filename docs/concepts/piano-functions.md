@@ -22,6 +22,7 @@ Keyboard Piano copies the functions found on real digital pianos such as the Yam
 | [Temperament](#temperament) | Historical tuning systems | 6 temperaments + key | `lib/music/tuning.ts` |
 | [Metronome](#metronome) | Steady click to practice with | Tempo, time signature, tap tempo | `lib/audio/metronome.ts` |
 | [Recorder](#recorder) | Record and replay your playing | One-take performance recorder | `hooks/useRecorder.ts` |
+| [Song playback (Notes)](#song-playback-notes) | Built-in songs to listen to and practice | Famous riffs that loop, keys lighting up | `lib/music/looper.ts` |
 | [Polyphony](#polyphony) | Max notes at once (64–256) | 64 voices with voice stealing | `audio-engine.ts` |
 
 ---
@@ -114,6 +115,10 @@ A steady click to practice with. Settings: tempo 30–240 BPM (with the Italian 
 ## Recorder
 
 Records your performance as **events** (which key, when, how hard, pedal moves), not audio, the same way digital-piano recorders store MIDI data. Playback drives the live instrument, so keys light up and you can switch voices before replaying.
+
+## Song playback (Notes)
+
+Digital pianos ship with built-in songs, and many light up the keys or slow the song down so you can learn it (Casio's key-lighting models, Yamaha's song "lesson" functions). The **Notes** page does the same with famous riffs: pick one, press *Play loop*, and it repeats on the keyboard until you stop it. Keys light up as they play, the current voice and settings apply, and the speed control (50–125%) slows a riff down to learn it. Recording while a loop plays captures it, so you can record yourself playing along. How the timing works: [ADR 0012](../decisions/0012-loop-riffs-through-the-piano.md).
 
 ## Polyphony
 

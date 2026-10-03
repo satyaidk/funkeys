@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import PianoApp from './PianoApp';
 import { installFakeAudioContext } from '@/test/fake-web-audio';
 
@@ -75,6 +75,21 @@ describe('PianoApp', () => {
     expect(screen.queryByRole('button', { name: 'C7' })).not.toBeInTheDocument();
     fireEvent.keyDown(window, { code: 'ArrowRight' });
     expect(screen.getByRole('button', { name: 'C7' })).toBeInTheDocument();
+  });
+
+  it('loops a song from the Notes page until it is stopped', async () => {
+    render(<PianoApp />);
+    fireEvent.click(tab('Notes'));
+    fireEvent.click(await screen.findByRole('radio', { name: /Seven Nation Army/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Play loop' }));
+
+    // The riff opens on E4, played through the piano: its key lights up
+    const e4 = screen.getByRole('button', { name: 'E4' });
+    await waitFor(() => expect(e4).toHaveAttribute('aria-pressed', 'true'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop loop' }));
+    expect(e4).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Play loop' })).toBeInTheDocument();
   });
 
   it('plays a note when a key is clicked', () => {
