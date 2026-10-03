@@ -1,12 +1,12 @@
 /**
- * @fileoverview Type definitions for the Keyboard Piano application.
+ * @fileoverview Domain types shared across the Keyboard Piano.
  *
- * This module defines all TypeScript interfaces used across the app.
- * Centralizing types ensures type safety and makes the codebase
- * self-documenting — every data shape is defined in one place.
+ * Shapes used by more than one layer (lib, hooks, components) live here.
+ * Props that belong to a single component are declared next to that
+ * component instead.
  */
 
-// ─── Note Types ──────────────────────────────────────────────────────────────
+// ─── Notes ───────────────────────────────────────────────────────────────────
 
 /** Musical note names in the chromatic scale */
 export type NoteName =
@@ -14,126 +14,139 @@ export type NoteName =
   | 'F' | 'F#' | 'G' | 'G#'
   | 'A' | 'A#' | 'B';
 
+/** Which half of the computer keyboard plays a key */
+export type Manual = 'lower' | 'upper';
+
 /**
- * Represents a single piano note with all properties needed
- * for rendering, audio synthesis, and keyboard input.
+ * One key on the on-screen keyboard: its pitch, the computer key that
+ * plays it, and how to draw it.
  */
 export interface Note {
-  /** Note name (e.g., 'C', 'F#') */
-  name: NoteName;
-  /** Octave number (e.g., 4 for middle C) */
-  octave: number;
-  /** Frequency in Hz (e.g., 261.63 for C4) */
-  frequency: number;
-  /** Whether this is a black (sharp/flat) key */
-  isBlack: boolean;
-  /** Computer keyboard key that triggers this note (lowercase) */
-  keyboardKey: string;
-  /** Display label for the keyboard key (uppercase) */
-  keyLabel: string;
-  /** Unique identifier: noteName + octave (e.g., 'C4', 'F#5') */
+  /** Unique identifier: note name + octave (e.g. 'C4', 'F#5') */
   id: string;
+  /** Note name (e.g. 'C', 'F#') */
+  name: NoteName;
+  /** Octave number (4 = the middle C octave) */
+  octave: number;
+  /** MIDI note number (60 = middle C, 69 = A4) */
+  midi: number;
+  /** Whether this is a black (sharp) key */
+  isBlack: boolean;
+  /** Physical computer key that plays it (`KeyboardEvent.code`, e.g. 'KeyQ') */
+  code: string;
+  /** Label printed on the key for a US QWERTY layout (e.g. 'Q') */
+  keyLabel: string;
+  /** Bottom two keyboard rows (lower) or top two rows (upper) */
+  manual: Manual;
 }
 
-// ─── Audio Types ─────────────────────────────────────────────────────────────
+// ─── Sound settings ──────────────────────────────────────────────────────────
+
+/** Instrument sounds ("voices"), each defined in `lib/audio/voices.ts` */
+export type VoiceId =
+  | 'grand'
+  | 'bright'
+  | 'electric'
+  | 'harpsichord'
+  | 'organ'
+  | 'strings'
+  | 'vibraphone'
+  | 'celesta';
 
 /**
- * ADSR Envelope parameters for shaping note dynamics.
- *
- * ADSR stands for Attack, Decay, Sustain, Release — the four phases
- * of a sound's volume over time. This is fundamental to making
- * synthesized sounds feel natural and musical.
- *
- * Volume ▲
- *   1.0  │    /\
- *        │   /  \
- *   S    │  /    \___________
- *        │ /                  \
- *   0.0  │/────────────────────\──► Time
- *         A    D    S         R
+ * - single: one voice across the keyboard
+ * - layer:  two voices stacked on every key (a.k.a. "dual")
+ * - split:  a different voice for the left-hand zone
  */
-export interface ADSREnvelope {
-  /** Time (seconds) for volume to ramp from 0 to peak */
-  attack: number;
-  /** Time (seconds) for volume to decay from peak to sustain level */
-  decay: number;
-  /** Volume level held while key is pressed (0 to 1) */
-  sustain: number;
-  /** Time (seconds) for volume to fade to 0 after key release */
-  release: number;
-}
+export type KeyboardMode = 'single' | 'layer' | 'split';
 
-/**
- * Represents a currently playing note's Web Audio nodes.
- * Stored in the AudioEngine's active notes map for lifecycle management.
- */
-export interface ActiveNote {
-  /** Unique note identifier (e.g., 'C4') */
-  noteId: string;
-  /** Array of oscillator nodes (fundamental + harmonic overtones) */
-  oscillators: OscillatorNode[];
-  /** Gain node controlling per-note volume / ADSR envelope */
-  gainNode: GainNode;
-  /** Low-pass filter for tonal warmth */
-  filterNode: BiquadFilterNode;
-  /** AudioContext time when note started playing */
-  startTime: number;
-}
+export type ReverbType = 'off' | 'room' | 'hall' | 'cathedral';
 
-// ─── State Types ─────────────────────────────────────────────────────────────
+/** Tone control: cut or boost the high frequencies */
+export type Brilliance = 'mellow' | 'normal' | 'bright';
 
-/** Piano configuration state managed by the usePiano hook */
-export interface PianoConfig {
-  /** Master volume level (0 to 1) */
+/** How strongly playing force maps to loudness, as on digital pianos */
+export type TouchCurve = 'light' | 'medium' | 'heavy' | 'fixed';
+
+/** Tuning systems; see `lib/music/tuning.ts` */
+export type TemperamentId =
+  | 'equal'
+  | 'pure-major'
+  | 'pythagorean'
+  | 'meantone'
+  | 'werckmeister'
+  | 'kirnberger';
+
+/** Every user-adjustable setting of the instrument */
+export interface PianoSettings {
+  /** Master volume (0–1) */
   volume: number;
-  /** Octave shift from base octave (-2 to +2) */
+  /** Octave shift of the whole keyboard (−2…+2) */
   octaveShift: number;
-  /** Whether sustain pedal is active (notes ring after release) */
-  sustain: boolean;
+  /** Pitch shift in semitones without moving the keys (−12…+12) */
+  transpose: number;
+  /** Frequency of A4 in Hz (415.3–466.2) */
+  referencePitch: number;
+  temperament: TemperamentId;
+  /** Key the temperament is centered on, as a pitch class (0 = C … 11 = B) */
+  temperamentRoot: number;
+  /** Main voice */
+  voice: VoiceId;
+  mode: KeyboardMode;
+  /** Second voice in layer mode */
+  layerVoice: VoiceId;
+  /** Layer mix: 0 = main voice only, 0.5 = equal, 1 = layer voice only */
+  layerBalance: number;
+  /** Left-hand voice in split mode */
+  splitVoice: VoiceId;
+  /** Split position as a key index (0 = lowest key); keys below it use `splitVoice` */
+  splitIndex: number;
+  reverb: ReverbType;
+  /** Reverb amount (0–1) */
+  reverbLevel: number;
+  brilliance: Brilliance;
+  touch: TouchCurve;
 }
 
-// ─── Component Props ─────────────────────────────────────────────────────────
+// ─── Pedals ──────────────────────────────────────────────────────────────────
 
-/** Props for the PianoKey component */
-export interface PianoKeyProps {
-  /** Note data for this key */
-  note: Note;
-  /** Whether this key is currently being played */
-  isActive: boolean;
-  /** Whether the note is still ringing from the sustain pedal after release */
-  isSustained?: boolean;
-  /** Called when the key is pressed (mouse/touch) */
-  onNoteStart: (noteId: string) => void;
-  /** Called when the key is released (mouse/touch) */
-  onNoteStop: (noteId: string) => void;
+/** The three pedals of a grand piano, left to right */
+export type PedalName = 'soft' | 'sostenuto' | 'sustain';
+
+export type PedalState = Record<PedalName, boolean>;
+
+// ─── Audio ───────────────────────────────────────────────────────────────────
+
+/** One voice to sound for a note, with its share of the volume */
+export interface VoiceLayer {
+  voice: VoiceId;
+  gain: number;
 }
 
-/** Props for the Piano component */
-export interface PianoProps {
-  /** Array of all notes to display */
-  notes: Note[];
-  /** Set of currently active note IDs for visual feedback */
-  activeNoteIds: Set<string>;
-  /** Set of note IDs still ringing from the sustain pedal */
-  sustainedNoteIds?: Set<string>;
-  /** Called when a note starts playing */
-  onNoteStart: (noteId: string) => void;
-  /** Called when a note stops playing */
-  onNoteStop: (noteId: string) => void;
+/** Everything the audio engine needs to start a note */
+export interface PlayNoteOptions {
+  /** Voices to sound together (one in single mode, two in layer mode) */
+  voices: VoiceLayer[];
+  /** Playing strength after the touch curve (0–1) */
+  velocity: number;
+  /** Sounding MIDI number, used for stereo position and pitch-dependent decay */
+  midi: number;
+  /** Soft pedal (una corda) held: quieter and darker */
+  soft?: boolean;
 }
 
-/** Props for the ControlPanel component */
-export interface ControlPanelProps {
-  /** Current master volume (0 to 1) */
-  volume: number;
-  /** Current octave shift (-2 to +2) */
-  octaveShift: number;
-  /** Whether sustain is currently active */
-  sustain: boolean;
-  /** Volume change handler */
-  onVolumeChange: (volume: number) => void;
-  /** Octave shift handler */
-  onOctaveChange: (shift: number) => void;
-  /** Sustain toggle handler */
-  onSustainToggle: () => void;
-}
+// ─── Recorder ────────────────────────────────────────────────────────────────
+
+export type RecorderStatus = 'idle' | 'recording' | 'playing';
+
+/** A single event in a recorded performance, timed from the start in ms */
+export type PerformanceEvent =
+  | { time: number; type: 'noteOn'; noteId: string; velocity: number }
+  | { time: number; type: 'noteOff'; noteId: string }
+  | { time: number; type: 'pedal'; pedal: PedalName; down: boolean };
+
+/** A performance event before it has been timestamped by the recorder */
+export type PerformanceAction =
+  | { type: 'noteOn'; noteId: string; velocity: number }
+  | { type: 'noteOff'; noteId: string }
+  | { type: 'pedal'; pedal: PedalName; down: boolean };

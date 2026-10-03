@@ -1,20 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Instrument_Sans, DotGothic16 } from "next/font/google";
 import MotionProvider from "@/components/layout/MotionProvider";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+/** UI text and the fallboard wordmark (variable: weight + width axes) */
+const instrumentSans = Instrument_Sans({
+  variable: "--font-instrument",
   subsets: ["latin"],
+  axes: ["wdth"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+/** Dot-matrix face, used only inside the LCD display */
+const dotGothic = DotGothic16({
+  variable: "--font-dot",
   subsets: ["latin"],
+  weight: "400",
 });
 
 const description =
-  "Play the piano with your computer keyboard, mouse or touch screen. Built with Next.js and the Web Audio API.";
+  "A 37-key digital piano you play with your computer keyboard, with 8 voices, layer and split, three pedals, historical tunings, a metronome and a recorder. Every sound is synthesized live with the Web Audio API.";
 
 export const metadata: Metadata = {
   title: "Keyboard Piano",
@@ -28,14 +32,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b0b14",
+  themeColor: "#1a1220",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${instrumentSans.variable} ${dotGothic.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <MotionProvider>{children}</MotionProvider>

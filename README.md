@@ -1,98 +1,207 @@
-# 🎹 Keyboard Piano
+<div align="center">
+
+# Keyboard Piano
+
+**A 37-key digital piano for your computer keyboard, synthesized live in the browser.**
+
+Eight voices, layer and split modes, three pedals, historical tunings, a metronome and a recorder.<br/>
+No audio files: every note is generated in real time with the Web Audio API.
 
 [![CI](https://github.com/satyaidk/expert-eureka/actions/workflows/ci.yml/badge.svg)](https://github.com/satyaidk/expert-eureka/actions/workflows/ci.yml)
-![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
+![Tests](https://img.shields.io/badge/tests-220%20passing-brightgreen?logo=vitest&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-76%20passing-brightgreen?logo=vitest&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
+![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=black)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38bdf8?logo=tailwindcss&logoColor=white)
 
-Play the piano with your computer keyboard, mouse, or touch screen. **Every note is synthesized live in the browser** with the Web Audio API. There are no audio files.
+[Getting started](#getting-started) · [Features](#features) · [How to play](#how-to-play) · [Architecture](#architecture) · [Documentation](#documentation)
 
-<!-- Add after deploying:  🔗 **Live demo:** https://your-app.vercel.app  -->
-<!-- Add a GIF of playing a chord here: ![Demo](docs/assets/demo.gif) -->
+<!-- After deploying, add:  **[▶ Play it live](https://your-app.vercel.app)** -->
 
-## ✨ Features
+<img src="docs/assets/screenshot.png" alt="Keyboard Piano: a dark digital-piano interface with an amber LCD showing 'Concert grand + String ensemble', a row of voice buttons, and a 37-key keyboard with five keys lit in rainbow colors above three brass pedals" width="900" />
 
-- **17 playable keys** (C4–E5) mapped to your keyboard, plus mouse and multi-touch
-- **Real-time synthesis:** 6 harmonic oscillators per note, ADSR envelope, low-pass filter and a master compressor
-- **Octave shift** (−2 to +2) and **sustain pedal**, with on-screen controls and shortcuts
-- **Rainbow visuals:** each note has its own color; sustained notes keep a soft glow
-- **Responsive:** the keyboard scales from 320px phones to desktop with pure CSS
-- **Accessible:** ARIA labels and live regions, keyboard-operable controls, respects "reduce motion"
-- **Tested:** 76 unit and integration tests, CI on every push
+</div>
 
-## 🚀 Getting started
+---
 
-Requires **Node.js 22.12+**.
+## Overview
+
+Keyboard Piano turns all four letter and number rows of your keyboard into a piano shaped like the real thing. Each pair of rows is a strip of white keys with black keys above, so the bottom rows play **C3–E4** and the top rows continue to **C6**.
+
+It recreates the functions of real digital pianos (Yamaha Clavinova, Roland FP-30X), researched from their manuals: voices, layer and split, sustain/sostenuto/soft pedals, touch sensitivity, reverb, transpose, master tuning and historical temperaments, plus a metronome and a performance recorder. The interface is designed as the instrument itself: a backlit LCD, knobs, LED pads, a lacquered fallboard and brass pedals.
+
+The project is built the way production software is: a layered architecture, 220 automated tests, CI on every push, and full documentation including 11 Architecture Decision Records.
+
+## Features
+
+| | Feature | Details |
+| --- | --- | --- |
+| 🎹 | **37-key keyboard** | Two piano-shaped manuals on the computer keyboard; mouse and multi-touch; octave shift to reach C1–C8 |
+| 🎻 | **8 voices** | Concert grand, Bright grand, Electric piano, Harpsichord, Drawbar organ, String ensemble, Vibraphone, Celesta |
+| 🎚️ | **Layer & split** | Two voices on every key with a balance knob, or a separate left-hand voice with a movable split point |
+| 🦶 | **Three pedals** | Soft (una corda), sostenuto and sustain, with the real-piano rules |
+| ✋ | **Touch sensitivity** | Light / Medium / Heavy / Fixed; mouse and touch velocity from press position |
+| 🏛️ | **Reverb & brilliance** | Room, concert hall or cathedral with depth; mellow, normal or bright tone |
+| 🎼 | **Tuning** | Transpose ±12, master tuning A4 = 415.3–466.2 Hz, six temperaments (Equal, Pure major, Pythagorean, Meantone, Werckmeister III, Kirnberger III) in any key |
+| ⏱️ | **Metronome** | 30–240 BPM, 2/4 to 6/8 with accents, tap tempo, sample-accurate timing |
+| ⏺️ | **Recorder** | Record a take and play it back through the instrument, keys lighting up |
+| 🌈 | **Visual feedback** | Every note has its own color; sustained notes glow softly; the LCD shows what's sounding |
+| ♿ | **Accessible** | Screen-reader labels, keyboard-operable controls (radio groups, tabs, sliders), reduced-motion support |
+
+### Sound engine
+
+Every voice is synthesized from a data-driven recipe:
+
+- **Additive synthesis** with up to 8 partials, plus **string inharmonicity** for the pianos
+- **FM synthesis** for the electric piano's bell-like attack
+- **LFO vibrato and tremolo**, hammer and pluck **noise transients**
+- **Natural decay** while keys are held (higher notes fade faster), **velocity-dependent brightness**
+- **Convolution reverb** with generated impulse responses, a high-shelf **brilliance** EQ, stereo spread
+- **64-voice polyphony** with voice stealing and a master compressor
+
+<div align="center">
+<img src="docs/assets/tuning-page.png" alt="The control panel's Tuning page: transpose and master tuning steppers, temperament buttons with Werckmeister III selected, and the LCD reading 'Tuning Werckmeister III in C'" width="900" />
+</div>
+
+## Getting started
+
+**Prerequisites:** [Node.js](https://nodejs.org) 22.12 or newer.
 
 ```bash
+git clone https://github.com/satyaidk/expert-eureka.git
+cd expert-eureka
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and press a key. Browsers only allow audio after you interact with the page, so the audio engine starts on your first key press or click.
+Open **http://localhost:3000** and press a key. Browsers allow sound only after you interact with the page, so audio starts on your first key press or click.
 
-## 🎮 Controls
+## How to play
 
-| Action | Keys |
+### Notes
+
+```
+ Upper manual: F4 → C6
+   2   3   4       6   7       9   0   -         black keys
+ Q   W   E   R   T   Y   U   I   O   P   [   ]   white keys
+
+ Lower manual: C3 → E4
+   S   D       G   H   J       L   ;             black keys
+ Z   X   C   V   B   N   M   ,   .   /           white keys
+```
+
+### Shortcuts
+
+| Keys | Action |
 | --- | --- |
-| White keys (C4 → E5) | `A S D F G H J K L ;` |
-| Black keys | `W E` · `T Y U` · `O P` |
-| Octave down / up | `Z` / `X` |
-| Toggle sustain pedal | `Space` |
+| `←` `→` | Octave down / up |
+| `↑` `↓` | Transpose down / up a semitone |
+| `Space` (hold) | Sustain pedal |
+| `Shift` (hold) | Soft pedal |
 
-## 🏗 Architecture
+Everything else (voices, modes, effects, tuning, metronome, recorder and the sostenuto pedal) is on screen.
+
+## Architecture
 
 ```
-UI components  ──►  custom hooks  ──►  core library (no React)  ──►  Web Audio API
-(src/components)    (src/hooks)        (src/lib)
+UI components  ──►  React hooks  ──►  core library (plain TypeScript)  ──►  Web Audio API
+src/components      src/hooks         src/lib/music · src/lib/audio
 ```
 
-Each layer only depends on the one below it, so the audio engine can be tested and replaced independently of the UI. Read the full [architecture guide](docs/architecture.md).
+Each layer depends only on the layers below it, so the music and audio core is framework-free and directly testable. Highlights:
 
-## 🛠 Tech stack
+- **Pedal logic as a pure state machine** (`NoteTracker`) that returns decisions; React and audio act on them
+- **Data-driven voices**: adding an instrument means adding a recipe object
+- **Lookahead scheduling** keeps the metronome on the audio clock, immune to UI jank
+- **Physical key mapping** (`KeyboardEvent.code`) with layout-aware labels via the Keyboard Map API
+- **A hardware-style design system** of accessible primitives: Knob, Stepper, SegmentedControl, RadioPads, PadButton, Led
 
-**Next.js 16** (App Router) · **React 19** · **TypeScript** (strict) · **Tailwind CSS 4** · **Framer Motion** · **Web Audio API** · **Vitest** + **React Testing Library** · **GitHub Actions**
+Read the full [architecture guide](docs/architecture.md).
 
-## 📁 Project structure
+## Tech stack
+
+| Area | Technology |
+| --- | --- |
+| Framework | [Next.js 16](https://nextjs.org) (App Router, static pre-rendering) |
+| UI | [React 19](https://react.dev), [Tailwind CSS 4](https://tailwindcss.com), [Framer Motion](https://motion.dev) |
+| Language | [TypeScript](https://www.typescriptlang.org) (strict) |
+| Audio | [Web Audio API](https://developer.mozilla.org/docs/Web/API/Web_Audio_API) |
+| Testing | [Vitest](https://vitest.dev), [React Testing Library](https://testing-library.com), a custom fake Web Audio API |
+| CI | GitHub Actions: lint, type-check, test, build |
+
+## Project structure
 
 ```
 src/
-├── app/                    # Next.js route, layout, global styles, icon
+├── app/                  # Next.js route, layout, design tokens, icon
 ├── components/
-│   ├── PianoApp.tsx        # Client root: wires usePiano() to the UI
-│   ├── layout/             # Header, MotionProvider
-│   ├── piano/              # Piano, PianoKey, NowPlaying
-│   └── controls/           # ControlPanel
-├── hooks/                  # usePiano, useAudioEngine, useKeyboardInput
-├── lib/                    # audio-engine, notes, constants, dom
-├── test/                   # Test setup + fake Web Audio API
-└── types/                  # Shared TypeScript types
-docs/                       # Architecture, concepts, code walkthrough, ADRs
+│   ├── PianoApp.tsx      # Client root: wires the hooks, lays out the instrument
+│   ├── console/          # Control panel: LCD, recorder, function tabs and pages
+│   ├── piano/            # Keyboard, keys, pedals
+│   └── ui/               # Design-system primitives
+├── hooks/                # usePiano, useAudioEngine, useMetronome, useRecorder, …
+├── lib/
+│   ├── music/            # Notes, keyboard map, tuning and temperaments
+│   ├── audio/            # Engine, voice synthesis, voices, effects, metronome
+│   └── note-tracker.ts   # Pedal rules (pure state machine)
+├── test/                 # Test setup and fake Web Audio API
+└── types/                # Shared domain types
+docs/                     # Architecture, concepts, code walkthrough, ADRs, guides
 ```
 
-## 📜 Scripts
+## Scripts
 
 | Command | Description |
 | --- | --- |
-| `npm run dev` | Start the dev server |
-| `npm run build` | Production build |
+| `npm run dev` | Start the development server |
+| `npm run build` | Create a production build |
 | `npm start` | Serve the production build |
-| `npm run lint` | ESLint |
-| `npm run typecheck` | TypeScript type check |
-| `npm test` | Run all tests once |
+| `npm run lint` | Run ESLint |
+| `npm run typecheck` | Type-check with TypeScript |
+| `npm test` | Run the test suite once |
 | `npm run test:watch` | Run tests in watch mode |
-| `npm run validate` | Lint + typecheck + test + build (same as CI) |
+| `npm run validate` | Lint, type-check, test and build (the same checks as CI) |
 
-## 📚 Documentation
+## Testing
 
-Full documentation lives in [`docs/`](docs/README.md):
+220 unit and integration tests cover the music math, synthesis graph, pedal rules, metronome scheduling, recorder, hooks and UI components. Audio is tested against a hand-written **fake Web Audio API** that records every node, connection and scheduled value; time-based code uses fake clocks and timers.
 
-- [Architecture](docs/architecture.md): layers, data flow, state, audio graph
-- Concepts: [Web Audio](docs/concepts/web-audio.md) · [Music theory](docs/concepts/music-theory.md) · [React patterns](docs/concepts/react-patterns.md)
-- [Code walkthrough](docs/code-walkthrough/): every file explained
-- [Architecture Decision Records](docs/decisions/): why key choices were made
-- [Testing](docs/testing.md) · [Development guide](docs/development.md) · [Roadmap](docs/roadmap.md)
+```bash
+npm test
+```
 
-## 📝 Changelog
+See the [testing guide](docs/testing.md).
 
-See [CHANGELOG.md](CHANGELOG.md).
+## Documentation
+
+The [`docs/`](docs/README.md) folder explains the project from the big picture down to every file:
+
+| Guide | What's inside |
+| --- | --- |
+| [Digital piano functions](docs/concepts/piano-functions.md) | What each feature does on a real piano, with sources |
+| [Architecture](docs/architecture.md) | Layers, data flow, state, audio graph, design system |
+| [Music theory](docs/concepts/music-theory.md) · [Web Audio](docs/concepts/web-audio.md) · [React patterns](docs/concepts/react-patterns.md) | The concepts behind the code |
+| [Code walkthrough](docs/code-walkthrough/) | Every file explained, in seven parts |
+| [Decision records](docs/decisions/) | 11 ADRs: why key choices were made |
+| [Testing](docs/testing.md) · [Development](docs/development.md) · [Roadmap](docs/roadmap.md) | Working on the project |
+
+## Roadmap
+
+Saved settings, MIDI keyboard input, chord detection on the LCD, MIDI file export, damper resonance, and Playwright end-to-end tests. See the [roadmap](docs/roadmap.md).
+
+## Contributing
+
+1. Create a branch from `dev` (`feat/…`, `fix/…`)
+2. Make your change with tests; update the docs
+3. Run `npm run validate`
+4. Open a pull request into `dev` using [Conventional Commits](https://www.conventionalcommits.org)
+
+Details in the [development guide](docs/development.md).
+
+## Acknowledgements
+
+- Chris Wilson, [*A Tale of Two Clocks*](https://web.dev/articles/audio-scheduling): the metronome's scheduling technique
+- Yamaha and Roland owner's manuals: the functions and value ranges of real digital pianos
+- Historical temperament tables from [Wikipedia](https://en.wikipedia.org/wiki/Werckmeister_temperament) and standard just-intonation ratios
+
+See the [changelog](CHANGELOG.md) for release history.

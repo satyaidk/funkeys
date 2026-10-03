@@ -1,24 +1,118 @@
 @import "tailwindcss";
 
-/* The piano UI is designed for a dark stage, so there is no light theme. */
+/*
+ * Design tokens: "the instrument, seen from the bench".
+ * The page is a physical digital piano on a dim stage: satin-ebony cabinet,
+ * graphite control panel, walnut cheeks, red key felt, brass pedals and an
+ * amber backlit display. The only loud color is the rainbow key lighting.
+ * There is no light theme: an instrument on stage is always lit this way.
+ */
 :root {
-  --background: #0b0b14;
-  --foreground: #ededed;
+  --stage: #1a1220;         /* velvet curtain backdrop */
+  --cabinet: #121016;       /* satin ebony body */
+  --cabinet-edge: #1f1b25;
+  --panel: #26232c;         /* anodized graphite control surface */
+  --panel-raised: #302c37;
+  --panel-sunk: #1b1920;
+  --groove: rgb(0 0 0 / 0.45);
+  --sheen: rgb(255 255 255 / 0.06);
+  --walnut: #5a3626;
+  --walnut-dark: #3b2218;
+  --felt: #7e1a22;
+  --ivory: #f7f3ea;
+  --ivory-shade: #e4ddcd;
+  --ebony-key: #17141b;
+  --brass: #c9a15a;
+  --brass-light: #ecd59a;
+  --led: #ffb547;           /* amber LEDs and LCD backlight */
+  --led-dim: rgb(255 181 71 / 0.14);
+  --rec: #ff5a4f;
+  --lcd-glass: #1c1409;
+  --ink: #ece6dd;           /* primary text on dark */
+  --ink-muted: #a59cab;
+  --ink-faint: #6f6676;
   color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-stage: var(--stage);
+  --color-cabinet: var(--cabinet);
+  --color-panel: var(--panel);
+  --color-panel-raised: var(--panel-raised);
+  --color-panel-sunk: var(--panel-sunk);
+  --color-walnut: var(--walnut);
+  --color-felt: var(--felt);
+  --color-ivory: var(--ivory);
+  --color-brass: var(--brass);
+  --color-led: var(--led);
+  --color-rec: var(--rec);
+  --color-lcd-glass: var(--lcd-glass);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --font-sans: var(--font-instrument);
+  --font-lcd: var(--font-dot);
+}
+
+html {
+  background: var(--stage);
 }
 
 body {
+  /* A warm spotlight on the instrument, falling off into the velvet */
   background:
-    radial-gradient(ellipse 80% 50% at 50% 0%, rgb(139 92 246 / 0.18), transparent),
-    radial-gradient(ellipse 60% 40% at 50% 100%, rgb(6 182 212 / 0.08), transparent),
-    var(--background);
-  color: var(--foreground);
+    radial-gradient(ellipse 75% 60% at 50% 8%, rgb(255 214 170 / 0.11), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgb(126 26 34 / 0.18), transparent 70%),
+    var(--stage);
+  color: var(--ink);
   font-family: var(--font-sans), system-ui, sans-serif;
+  font-feature-settings: "tnum" 1; /* steady digits in readouts */
+}
+
+/* One focus style everywhere: an amber ring, only for keyboard users */
+:focus-visible {
+  outline: 2px solid var(--led);
+  outline-offset: 2px;
+}
+
+/* ── Power-on: a single rainbow sweep across the keys on load ───────── */
+@keyframes key-chase {
+  0% { opacity: 0; }
+  35% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+
+.key-chase {
+  animation: key-chase 0.7s ease-out both;
+}
+
+/* ── Recording LED blink ──────────────────────────────────────────────── */
+@keyframes led-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+.led-blink {
+  animation: led-blink 1s steps(1, end) infinite;
+}
+
+/* ── LCD: faint pixel grid over the glass ─────────────────────────────── */
+.lcd-grid {
+  background-image: radial-gradient(rgb(255 181 71 / 0.07) 0.6px, transparent 0.7px);
+  background-size: 3px 3px;
+}
+
+/* ── Hide scrollbars on horizontally scrolling rails (still scrollable) ─ */
+.scroll-rail {
+  scrollbar-width: none;
+}
+.scroll-rail::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .key-chase,
+  .led-blink {
+    animation: none;
+  }
 }

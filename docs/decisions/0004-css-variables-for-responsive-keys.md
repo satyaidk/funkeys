@@ -1,6 +1,6 @@
 # ADR 0004: Size keys with CSS variables and `clamp()`
 
-- **Status:** Accepted
+- **Status:** Accepted, amended by [ADR 0010](./0010-two-manual-37-key-layout.md) (37 keys: phones scroll instead of shrinking further)
 - **Area:** Layout (`src/components/piano/Piano.tsx`, `PianoKey.tsx`)
 
 ## Context

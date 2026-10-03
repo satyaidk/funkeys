@@ -3,72 +3,47 @@
  *
  * All magic numbers and configuration values are centralized here.
  * This makes the app easy to tune and prevents scattered literals.
+ * Per-instrument sound recipes live in `audio/voices.ts`.
  */
 
 // ─── Piano Range ─────────────────────────────────────────────────────────────
 
-/** Base octave for the piano (4 = middle C octave) */
-export const BASE_OCTAVE = 4;
+/** Octave of the lowest key (the keyboard spans C3 → C6 with no octave shift) */
+export const BASE_OCTAVE = 3;
 
-/** Minimum allowed octave shift (2 octaves down from base) */
+/** Minimum allowed octave shift (2 octaves down: C1 → C4) */
 export const MIN_OCTAVE_SHIFT = -2;
 
-/** Maximum allowed octave shift (2 octaves up from base) */
+/** Maximum allowed octave shift (2 octaves up: C5 → C8, the top of a grand piano) */
 export const MAX_OCTAVE_SHIFT = 2;
 
-// ─── Audio Defaults ──────────────────────────────────────────────────────────
+// ─── Tuning ──────────────────────────────────────────────────────────────────
+
+/** Concert pitch: the frequency of A4 in Hz */
+export const DEFAULT_REFERENCE_PITCH = 440;
+
+/**
+ * Master tuning range for A4, matching digital pianos such as the Roland
+ * FP-30X (415.3–466.2 Hz in 0.1 Hz steps). 415.3 Hz is "Baroque pitch",
+ * a semitone below modern concert pitch.
+ */
+export const MIN_REFERENCE_PITCH = 415.3;
+export const MAX_REFERENCE_PITCH = 466.2;
+export const REFERENCE_PITCH_STEP = 0.1;
+
+/** Transpose range in semitones (±1 octave) */
+export const MAX_TRANSPOSE = 12;
+
+// ─── Audio ───────────────────────────────────────────────────────────────────
 
 /** Default master volume (0 to 1) */
 export const DEFAULT_VOLUME = 0.7;
 
 /**
- * Default ADSR envelope values for a piano-like sound.
- *
- * - Fast attack (5ms): Piano hammers strike strings instantly
- * - Medium decay (300ms): Initial brightness fades quickly
- * - Low sustain (20%): Held notes ring softly
- * - Long release (800ms): Notes fade naturally after key release
+ * Maximum number of voices sounding at once. When exceeded, the oldest voice
+ * is faded out ("voice stealing"), as on hardware digital pianos.
  */
-export const DEFAULT_ENVELOPE = {
-  attack: 0.005,
-  decay: 0.3,
-  sustain: 0.2,
-  release: 0.8,
-} as const;
-
-// ─── Harmonic Overtones ──────────────────────────────────────────────────────
-
-/**
- * Harmonic frequency ratios relative to the fundamental.
- *
- * A real piano string vibrates at multiple frequencies simultaneously:
- * - 1× = fundamental (the "note" you hear)
- * - 2× = first overtone (one octave up)
- * - 3× = second overtone (octave + fifth)
- * - 4× = third overtone (two octaves up)
- * - 5× = fourth overtone
- * - 6× = fifth overtone
- *
- * These overtones create the rich, complex timbre of a piano.
- */
-export const HARMONIC_RATIOS = [1, 2, 3, 4, 5, 6] as const;
-
-/**
- * Relative amplitude for each harmonic (energy decreases with frequency).
- * Higher harmonics are quieter, creating a natural, warm tone.
- */
-export const HARMONIC_AMPLITUDES = [1.0, 0.5, 0.25, 0.125, 0.0625, 0.03] as const;
-
-// ─── Filter Settings ─────────────────────────────────────────────────────────
-
-/** Low-pass filter cutoff frequency in Hz (removes harsh high frequencies) */
-export const FILTER_CUTOFF = 5000;
-
-/** Filter Q factor (resonance — higher = more pronounced cutoff) */
-export const FILTER_Q = 1;
-
-/** Per-note gain applied to each harmonic (keeps a single note well below clipping) */
-export const HARMONIC_GAIN = 0.15;
+export const MAX_POLYPHONY = 64;
 
 /**
  * Fade time (seconds) used when a voice must be cut short — re-triggering a
@@ -82,32 +57,85 @@ export const QUICK_RELEASE = 0.015;
  * notes are played at once (each voice adds to the total signal level).
  */
 export const COMPRESSOR = {
-  threshold: -12,
-  knee: 6,
+  threshold: -14,
+  knee: 8,
   ratio: 4,
   attack: 0.003,
   release: 0.25,
 } as const;
 
+/** Velocity used for computer-keyboard presses (keys can't sense how hard you press) */
+export const KEYBOARD_VELOCITY = 0.72;
+
+/** How far the soft pedal (una corda) lowers velocity and darkens the tone */
+export const SOFT_PEDAL = {
+  velocityScale: 0.65,
+  brightnessScale: 0.55,
+} as const;
+
+/** Stereo width: low notes pan left, high notes right, like sitting at the bench */
+export const STEREO_SPREAD = 0.5;
+
+// ─── Effects ─────────────────────────────────────────────────────────────────
+
+/**
+ * Reverb rooms. The impulse response is generated as decaying noise:
+ * `duration` is the tail length in seconds, `decay` how steeply it fades,
+ * `preDelay` the gap before the first reflections.
+ */
+export const REVERB_PRESETS = {
+  room: { duration: 0.9, decay: 3.5, preDelay: 0.004 },
+  hall: { duration: 2.4, decay: 2.6, preDelay: 0.018 },
+  cathedral: { duration: 5.2, decay: 1.9, preDelay: 0.035 },
+} as const;
+
+export const DEFAULT_REVERB_LEVEL = 0.28;
+
+/** Brilliance: a high-shelf EQ boost or cut (dB) above `BRILLIANCE_FREQUENCY` */
+export const BRILLIANCE_GAIN_DB = {
+  mellow: -7,
+  normal: 0,
+  bright: 6,
+} as const;
+
+export const BRILLIANCE_FREQUENCY = 3200;
+
+// ─── Metronome ───────────────────────────────────────────────────────────────
+
+export const MIN_BPM = 30;
+export const MAX_BPM = 240;
+export const DEFAULT_BPM = 96;
+
+/** How often the scheduler wakes up (ms) and how far ahead it books clicks (s) */
+export const METRONOME_LOOKAHEAD_MS = 25;
+export const METRONOME_SCHEDULE_AHEAD = 0.12;
+
+/** Taps further apart than this (ms) start a new tap-tempo measurement */
+export const TAP_TEMPO_RESET_MS = 2000;
+
 // ─── Key Dimensions ──────────────────────────────────────────────────────────
 
 /** Maximum white key width in px (used on wide screens) */
-export const WHITE_KEY_WIDTH = 60;
+export const WHITE_KEY_WIDTH = 58;
 
-/** Minimum white key width in px (keyboard shrinks to fit narrow screens) */
-export const MIN_WHITE_KEY_WIDTH = 26;
+/**
+ * Minimum white key width in px. Below the width needed to fit every key,
+ * the keyboard scrolls sideways instead of shrinking further, so keys stay
+ * big enough to tap.
+ */
+export const MIN_WHITE_KEY_WIDTH = 34;
 
 /** Maximum white key height in px */
-export const WHITE_KEY_HEIGHT = 200;
+export const WHITE_KEY_HEIGHT = 224;
 
 /** Minimum white key height in px */
-export const MIN_WHITE_KEY_HEIGHT = 140;
+export const MIN_WHITE_KEY_HEIGHT = 168;
 
 /** Black key width relative to a white key */
 export const BLACK_KEY_WIDTH_RATIO = 0.6;
 
 /** Black key height relative to a white key */
-export const BLACK_KEY_HEIGHT_RATIO = 0.65;
+export const BLACK_KEY_HEIGHT_RATIO = 0.63;
 
 // ─── Note Colors ─────────────────────────────────────────────────────────────
 

@@ -1,67 +1,69 @@
 /**
- * @fileoverview Client-side piano application.
+ * @fileoverview Client root of the instrument.
  *
- * Owns the piano state via `usePiano()` and wires it to the controls,
- * the "now playing" readout and the keyboard. Kept separate from the page
- * so the page itself can stay a Server Component.
+ * Creates the hooks once and wires them together:
+ *
+ * ```
+ * useAudioEngine ──► usePiano ◄── useRecorder (captures actions, plays them back)
+ *        └─────────► useMetronome
+ * ```
+ *
+ * then lays out the cabinet: control panel, keyboard, pedals and key guide.
+ * Kept separate from the page so the page can stay a Server Component.
  */
 
 'use client';
 
-import { motion } from 'framer-motion';
+import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { usePiano } from '@/hooks/usePiano';
-import ControlPanel from './controls/ControlPanel';
-import NowPlaying from './piano/NowPlaying';
+import { useMetronome } from '@/hooks/useMetronome';
+import { useRecorder } from '@/hooks/useRecorder';
+import { useKeyboardLabels } from '@/hooks/useKeyboardLabels';
+import { getVoice } from '@/lib/audio/voices';
+import ConsolePanel from './console/ConsolePanel';
 import Piano from './piano/Piano';
+import PedalUnit from './piano/PedalUnit';
+import KeyGuide from './KeyGuide';
 
 export default function PianoApp() {
-  const {
-    notes,
-    activeNoteIds,
-    sustainedNoteIds,
-    config,
-    onNoteStart,
-    onNoteStop,
-    onVolumeChange,
-    onOctaveChange,
-    onSustainToggle,
-  } = usePiano();
+  const audio = useAudioEngine();
+  const recorder = useRecorder();
+  const piano = usePiano({ audio, onPerformanceAction: recorder.capture });
+  const metronome = useMetronome(audio);
+  const labels = useKeyboardLabels();
+
+  const { settings } = piano;
+  const split =
+    settings.mode === 'split'
+      ? {
+          index: settings.splitIndex,
+          leftLabel: getVoice(settings.splitVoice).name,
+          rightLabel: getVoice(settings.voice).name,
+        }
+      : null;
 
   return (
-    <motion.main
-      className="flex w-full flex-1 flex-col items-center gap-6 px-4 pb-10 pt-4"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 0.15, ease: 'easeOut' }}
-    >
-      <ControlPanel
-        volume={config.volume}
-        octaveShift={config.octaveShift}
-        sustain={config.sustain}
-        onVolumeChange={onVolumeChange}
-        onOctaveChange={onOctaveChange}
-        onSustainToggle={onSustainToggle}
-      />
+    <div className="flex flex-col gap-10">
+      <div>
+        {/* Cabinet */}
+        <div className="rounded-[18px] bg-linear-to-b from-[var(--cabinet-edge)] via-cabinet to-[#0b0a0d] p-2 shadow-[0_40px_90px_-30px_rgb(0_0_0/0.85),inset_0_1px_0_rgb(255_255_255/0.07)] sm:p-3">
+          <ConsolePanel piano={piano} metronome={metronome} recorder={recorder} />
+          <div className="rounded-b-[14px] bg-[#0c0a0e] pb-3 pt-3 sm:pb-4">
+            <Piano
+              notes={piano.notes}
+              labels={labels}
+              activeNoteIds={piano.activeNoteIds}
+              sustainedNoteIds={piano.sustainedNoteIds}
+              onNoteOn={piano.noteOn}
+              onNoteOff={piano.noteOff}
+              split={split}
+            />
+          </div>
+        </div>
+        <PedalUnit pedals={piano.pedals} onToggle={piano.togglePedal} />
+      </div>
 
-      <NowPlaying
-        notes={notes}
-        activeNoteIds={activeNoteIds}
-        sustainedNoteIds={sustainedNoteIds}
-      />
-
-      <Piano
-        notes={notes}
-        activeNoteIds={activeNoteIds}
-        sustainedNoteIds={sustainedNoteIds}
-        onNoteStart={onNoteStart}
-        onNoteStop={onNoteStop}
-      />
-
-      <p className="max-w-xl text-center text-xs leading-relaxed text-gray-500">
-        Use the <span className="text-gray-300">A–;</span> row for white keys and{' '}
-        <span className="text-gray-300">W E T Y U O P</span> for black keys. You can also
-        click or tap the keys.
-      </p>
-    </motion.main>
+      <KeyGuide notes={piano.notes} />
+    </div>
   );
 }

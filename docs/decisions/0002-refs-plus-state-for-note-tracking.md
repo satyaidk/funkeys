@@ -1,6 +1,6 @@
 # ADR 0002: Track held notes in refs, mirrored to state for rendering
 
-- **Status:** Accepted
+- **Status:** Accepted, refined by [ADR 0008](./0008-pedal-logic-as-a-pure-state-machine.md) (the note sets now live in a `NoteTracker`)
 - **Area:** State management (`src/hooks/usePiano.ts`)
 
 ## Context

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Defines the **shape of every piece of data** in the app: notes, audio voices, configuration and component props. Every other layer imports from here, so this is the best place to start reading.
+Defines the **shape of every piece of data shared between layers**: notes, settings, pedals, audio requests and recorded events. It contains no runtime code; TypeScript erases it at build time.
 
 ## Where it fits
 
@@ -10,76 +10,81 @@ Defines the **shape of every piece of data** in the app: notes, audio voices, co
 types/index.ts  ◄── imported by lib/, hooks/, components/
 ```
 
-It contains **no runtime code**. TypeScript erases types at build time, so this file adds zero bytes to the JavaScript bundle.
+**Convention:** shapes used by more than one layer live here. Props used by a single component (e.g. `PianoKeyProps`) are declared next to that component.
 
 ## Code explained
 
-### `NoteName`: a union type
+### Notes
 
 ```ts
-export type NoteName = 'C' | 'C#' | 'D' | 'D#' | 'E' | 'F' | 'F#' | 'G' | 'G#' | 'A' | 'A#' | 'B';
-```
+export type NoteName = 'C' | 'C#' | … | 'B';   // union: only these 12 strings are valid
+export type Manual = 'lower' | 'upper';
 
-A **union of string literals**: a `NoteName` can only be one of these 12 exact strings. `getNoteColor('H')` is a compile error. Using plain `string` would allow any typo.
-
-### `Note`: everything about one key
-
-```ts
 export interface Note {
-  name: NoteName;      // 'C', 'F#'…
-  octave: number;      // 4 for middle C
-  frequency: number;   // Hz, e.g. 261.63
-  isBlack: boolean;    // sharp keys are black
-  keyboardKey: string; // computer key that plays it: 'a'
-  keyLabel: string;    // what to print on the key: 'A'
-  id: string;          // unique: 'C4', 'F#5'
+  id: string;        // 'F#4': used as the key in sets, maps, aria-labels
+  name: NoteName;
+  octave: number;
+  midi: number;      // 66: for math (tuning, voice routing)
+  isBlack: boolean;
+  code: string;      // 'Digit2': the physical computer key (KeyboardEvent.code)
+  keyLabel: string;  // '2': default label (replaced by the real layout when known)
+  manual: Manual;    // which pair of keyboard rows plays it
 }
 ```
 
-One object holds everything each layer needs: the audio engine uses `frequency`, the keyboard hook uses `keyboardKey`, the UI uses `isBlack`, `keyLabel` and `name`. `id` (name + octave) is the key used everywhere to identify a note, in sets, maps and React `key`s.
+`id` and `midi` describe the same note in two ways: ids are readable and stable keys; MIDI numbers are for arithmetic.
 
-### `ADSREnvelope`
-
-The four numbers that shape a note's volume over time (attack, decay, sustain, release). Explained in [Web Audio concepts §5](../concepts/web-audio.md#5-the-adsr-envelope-how-volume-changes-over-time).
-
-### `ActiveNote`: a playing voice
+### Sound settings
 
 ```ts
-export interface ActiveNote {
-  noteId: string;
-  oscillators: OscillatorNode[];  // the 6 harmonic oscillators
-  gainNode: GainNode;             // ADSR envelope
-  filterNode: BiquadFilterNode;
-  startTime: number;              // audio clock time it started
-}
+export type VoiceId = 'grand' | 'bright' | 'electric' | 'harpsichord' | 'organ' | 'strings' | 'vibraphone' | 'celesta';
+export type KeyboardMode = 'single' | 'layer' | 'split';
+export type ReverbType = 'off' | 'room' | 'hall' | 'cathedral';
+export type Brilliance = 'mellow' | 'normal' | 'bright';
+export type TouchCurve = 'light' | 'medium' | 'heavy' | 'fixed';
+export type TemperamentId = 'equal' | 'pure-major' | 'pythagorean' | 'meantone' | 'werckmeister' | 'kirnberger';
 ```
 
-The engine keeps one per held note so it can release it later. `OscillatorNode`, `GainNode` etc. are **built-in DOM types** that TypeScript provides from the `"dom"` library in `tsconfig.json`.
+Every option is a **string-literal union**, so a typo like `'cathedrall'` is a compile error, and `switch` statements can be checked for completeness.
 
-### `PianoConfig`
+`PianoSettings` gathers every adjustable value: volume, octave shift, transpose, reference pitch, temperament and its root, voice, mode, layer voice and balance, split voice and split index, reverb and level, brilliance, touch. One object means one source of truth, one validation function (`sanitizeSettings`), and one `updateSettings(patch)` entry point.
 
-User settings: `volume` (0–1), `octaveShift` (−2…+2), `sustain` (on/off).
-
-### Component props
-
-`PianoKeyProps`, `PianoProps` and `ControlPanelProps` describe each component's inputs. Two are optional (`?`):
+### Pedals
 
 ```ts
-isSustained?: boolean;           // PianoKeyProps
-sustainedNoteIds?: Set<string>;  // PianoProps
+export type PedalName = 'soft' | 'sostenuto' | 'sustain';
+export type PedalState = Record<PedalName, boolean>;   // { soft: false, sostenuto: false, sustain: true }
 ```
 
-Optional props let the component be used without them (the component supplies a default), which keeps the API easy to use and tests short.
+`Record<K, V>` builds an object type with exactly those keys.
+
+### Audio requests
+
+```ts
+export interface VoiceLayer { voice: VoiceId; gain: number }
+export interface PlayNoteOptions { voices: VoiceLayer[]; velocity: number; midi: number; soft?: boolean }
+```
+
+What `usePiano` hands the engine: *which* voices (one, or two in layer mode), how hard, which pitch, soft pedal or not.
+
+### Recorder events: a discriminated union
+
+```ts
+export type PerformanceEvent =
+  | { time: number; type: 'noteOn'; noteId: string; velocity: number }
+  | { time: number; type: 'noteOff'; noteId: string }
+  | { time: number; type: 'pedal'; pedal: PedalName; down: boolean };
+```
+
+The `type` field **discriminates** the union. After `if (event.type === 'noteOn')`, TypeScript knows `event.velocity` exists. `PerformanceAction` is the same without `time` (what `usePiano` emits before the recorder timestamps it).
 
 ## Why it's built this way
 
-- **One source of truth for data shapes.** If `Note` changes, TypeScript points at every file that needs updating.
-- **Types as documentation.** The JSDoc comment on each field shows up when you hover in VS Code.
-- **`interface` for objects, `type` for unions.** A common convention: interfaces describe object shapes and can be extended; type aliases are needed for unions.
-
-> **Note:** `NowPlayingProps` lives inside `NowPlaying.tsx` instead of here. Props used by only one component can stay with it; shared shapes go in `types/`. Both approaches are common. What matters is being consistent and deliberate.
+- **One place for data shapes.** Change `Note` and the compiler lists every file to update.
+- **Unions over strings and booleans.** `mode: 'single' | 'layer' | 'split'` is clearer and safer than two booleans `isLayer`/`isSplit`, which allow the impossible state "both".
+- **Discriminated unions model events.** A standard pattern for messages, actions and events in TypeScript codebases.
 
 ## 🧪 Try it yourself
 
-1. Add a `velocity: number` field to `Note`. Run `npm run typecheck`. TypeScript lists every place that creates a `Note` and now fails (just `generateNotes`). That's TypeScript guiding a refactor.
-2. Change `octave: number` to `octave: string` and read the errors. Then undo.
+1. Add `'choir'` to `VoiceId` and run `npm run typecheck`. Nothing breaks yet, but `voices.test.ts` will fail ("defines 8 voices") once you add a recipe. Add one in `voices.ts` (see [Part 3](./03-audio.md)).
+2. Remove `velocity` from the `noteOn` event type and read the errors in `useRecorder.ts`.

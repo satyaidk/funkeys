@@ -1,164 +1,185 @@
 # React & Next.js patterns used in this project
 
-The React patterns you'll see across the codebase, why each is used, and where to find it. If a hook in the code confuses you, look it up here.
+The patterns you'll see across the codebase, why each is used, and where to find it. If a hook or component confuses you, look it up here.
 
 ---
 
 ## 1. Components and props
 
-A component is a function that takes **props** (inputs) and returns UI. Data flows **down** through props; events flow **up** through callback props.
+A component is a function that takes **props** and returns UI. Data flows **down** through props; events flow **up** through callback props.
 
 ```tsx
-// PianoApp passes data down…
-<ControlPanel volume={config.volume} onVolumeChange={onVolumeChange} />
-
-// …ControlPanel calls the callback to send events up
-<input onChange={(e) => onVolumeChange(Number(e.target.value))} />
+<VoicePanel voice={settings.voice} onChange={(voice) => updateSettings({ voice })} />
 ```
 
-`ControlPanel` doesn't *own* the volume. It displays it and reports changes. This is a **controlled component**, and it keeps a single source of truth (in `usePiano`).
+`VoicePanel` doesn't own the voice. It displays it and reports changes: a **controlled component** with a single source of truth (in `usePiano`).
+
+### Container and presentational components
+
+- **Containers** connect state to UI: `PianoApp` (creates the hooks) and `ConsolePanel` (hands each panel what it needs).
+- **Presentational** components just render props: `Piano`, `PianoKey`, `Display`, every panel, every `ui/` primitive.
+
+Presentational components are easy to test and reuse, because they don't know where data comes from.
 
 ## 2. Custom hooks: logic without UI
 
-A **custom hook** is a function starting with `use` that calls other hooks. It packages *behavior* so components stay simple.
-
 | Hook | Responsibility |
 | --- | --- |
-| `useAudioEngine` | Owns the AudioEngine instance and its lifecycle |
-| `useKeyboardInput` | Turns keyboard events into note start/stop calls |
-| `usePiano` | Combines the two above, plus controls and visual state |
+| `useAudioEngine` | Owns the AudioEngine; returns a stable `AudioControls` object |
+| `useKeyboardInput` | Turns physical key presses into note on/off calls |
+| `useKeyboardLabels` | Reads the user's keyboard layout labels (Keyboard Map API) |
+| `usePiano` | The orchestrator: settings, notes, pedals, shortcuts |
+| `useMetronome` | Tempo, time signature, beat lights, tap tempo |
+| `useRecorder` | Records performance events and plays them back |
 
-`PianoApp` just calls `usePiano()` and passes the results to components. **Components describe what things look like; hooks decide what happens.**
+**Components describe what things look like; hooks decide what happens.**
+
+### Dependency injection between hooks
+
+`usePiano` doesn't create the audio engine. It **receives** it:
+
+```tsx
+const audio = useAudioEngine();
+const recorder = useRecorder();
+const piano = usePiano({ audio, onPerformanceAction: recorder.capture });
+const metronome = useMetronome(audio);
+```
+
+The metronome and the piano share one engine, and tests can pass in a fake `audio` (see `useMetronome.test.ts`).
 
 ## 3. `useState`: values that change what's on screen
 
 ```ts
-const [config, setConfig] = useState<PianoConfig>({ volume: 0.7, octaveShift: 0, sustain: false });
+const [settings, setSettings] = useState<PianoSettings>(DEFAULT_SETTINGS);
 ```
 
-Calling `setConfig` schedules a re-render. Use state for anything the UI displays.
-
-**Functional updates** use the previous value safely:
-
-```ts
-setConfig((prev) => ({ ...prev, volume: clamped }));
-```
-
-**Lazy initial state** (`useState(() => new Set())`) runs the initializer only once instead of creating a throwaway `Set` on every render.
+Calling the setter schedules a re-render. **Lazy initialization** (`useState(() => new NoteTracker())`) creates the object once instead of on every render, which is also a neat way to hold a stable class instance.
 
 ## 4. `useRef`: values that *don't* change what's on screen
 
-A ref is a box (`ref.current`) that survives re-renders, and **changing it does not re-render**.
+A ref is a box (`ref.current`) that survives re-renders; changing it does **not** re-render. Used for:
 
-Used for:
+- `engineRef`: the AudioEngine instance
+- `pressedKeysRef`: physical keys currently down → note id
+- `pointerDownRef` (PianoKey): did *this* pointer press this key?
+- `settingsRef`, `pedalsRef`, `pedalSourcesRef` (usePiano): latest values for event handlers
+- `schedulerRef`, `beatTimersRef` (useMetronome), `timersRef` (useRecorder)
 
-- `engineRef`: the AudioEngine instance (must persist, must not cause renders)
-- `pressedKeysRef`: which physical keys are down (only event handlers need it)
-- `pointerDownRef` in `PianoKey`: did *this* pointer press the key?
-- `heldRef`, `sustainedRef`, `sustainRef` in `usePiano`: see below
+### Refs mirrored to state
 
-### The stale closure problem, and why `usePiano` mirrors state in refs
-
-Event handlers are closures: they "remember" the variables from the render they were created in. If a handler reads `state` and the state changed since, it may see an **old value**. Also, `setState` doesn't update the variable immediately; it updates it on the *next* render.
-
-`usePiano` needs to answer "is C4 held right now?" *synchronously* inside handlers that fire in quick succession (key down, key up, octave change). So it keeps the truth in **refs** and copies it into **state** for rendering:
+Event handlers can fire faster than React re-renders, and handlers created in an older render see **stale** values. `usePiano` keeps the source of truth in refs (and the `NoteTracker`), then mirrors it into state for rendering:
 
 ```ts
-heldRef.current.add(noteId);   // instant, always current, used by logic
-syncNoteState();               // copies refs → state, triggers re-render for UI
+settingsRef.current = next;   // handlers read this immediately
+setSettings(next);            // the UI re-renders from this
 ```
 
 Full reasoning: [ADR 0002](../decisions/0002-refs-plus-state-for-note-tracking.md).
 
 ## 5. `useEffect`: syncing with the outside world
 
-Effects run **after** render, to connect React to things outside it (window events, timers, audio). They return a **cleanup** function.
+Effects connect React to things outside it and **always clean up**:
 
 ```ts
 useEffect(() => {
   window.addEventListener('keydown', handleKeyDown);
-  return () => window.removeEventListener('keydown', handleKeyDown); // cleanup
+  return () => window.removeEventListener('keydown', handleKeyDown);
 }, [handleKeyDown]);
 ```
 
-The cleanup runs before the effect re-runs and when the component unmounts. **Forgetting cleanup causes duplicate listeners and memory leaks.** Every effect in this project cleans up after itself.
-
-`useAudioEngine` uses an effect *only* for cleanup, closing the AudioContext on unmount:
+Effects are also the right tool to **push state into an external system**:
 
 ```ts
-useEffect(() => () => { engineRef.current?.destroy(); engineRef.current = null; }, []);
+useEffect(() => audio.setReverb(settings.reverb, settings.reverbLevel), [audio, settings.reverb, settings.reverbLevel]);
 ```
 
-> 💡 In development, React's **Strict Mode** mounts components, unmounts them, and mounts them again to expose missing cleanups. That's why the ref is set back to `null`: the remount then gets a fresh engine instead of a closed one.
+Whenever reverb settings change, from a control or a test, the engine follows. No component has to remember to call it.
 
-## 6. `useCallback` and `useMemo`: stable identities
+> 💡 React **Strict Mode** mounts, unmounts and remounts components in development to expose missing cleanups. `useAudioEngine` sets its ref back to `null` on unmount so the remount gets a fresh engine.
 
-Every render creates new function objects. Usually that's fine, but it matters when:
+## 6. `useCallback`, `useMemo` and stable identities
 
-1. A function is a **dependency of an effect** (a new function means the effect re-runs, re-adding listeners)
-2. A function is passed to a **memoized child** (a new function means the child re-renders anyway)
+New function objects are created on every render. That matters when a function is an **effect dependency** (it would re-run the effect) or a prop of a **memoized child** (it would re-render anyway).
 
 ```ts
-const handleNoteStop = useCallback((noteId: string) => { … }, [stopNote, syncNoteState]);
+const noteOn = useCallback((noteId, velocity) => { … }, [audio, tracker, syncNotes]);
+const notes = useMemo(() => generateNotes(settings.octaveShift), [settings.octaveShift]);
 ```
 
-`useCallback` returns the **same** function until a dependency changes. `useMemo` does the same for computed values:
+`useAudioEngine` returns a whole **API object** from `useMemo(..., [])`, so `audio` never changes identity and is safe to list in dependency arrays.
 
-```ts
-const notes = useMemo(() => generateNotes(config.octaveShift), [config.octaveShift]);
-```
-
-`notes` is only rebuilt when the octave changes, not on every key press.
-
-## 7. `React.memo`: skip re-rendering unchanged components
+## 7. `React.memo`
 
 ```ts
 const PianoKey = memo(function PianoKey(props) { … });
 ```
 
-`memo` makes a component re-render **only if its props changed** (compared with `===`). Pressing C4 changes C4's `isActive`, so only C4 re-renders, not all 17 keys. This only works because the callbacks passed to it are stable (`useCallback`).
+Re-renders only when props change. With 37 keys, pressing one re-renders one. That only works because `noteOn`/`noteOff` are stable (`useCallback`).
 
 ## 8. Derived state: compute, don't store
 
-`NowPlaying` doesn't keep its own list of sounding notes. It **derives** it from props every render:
+The display's note list is derived each render, never stored:
 
 ```ts
-const soundingNotes = notes.filter((n) => activeNoteIds.has(n.id) || sustainedNoteIds.has(n.id));
+const soundingNotes = notes.filter((n) => activeNoteIds.has(n.id) || sustainedNoteIds.has(n.id)).map((n) => n.id);
 ```
 
-Storing a copy would mean two sources of truth that can drift apart. **If you can compute it, don't store it.**
+Same for the tab LEDs (`tuningChanged`, `soundChanged`). Storing copies would create two sources of truth that can drift.
 
-## 9. Server and Client Components (Next.js App Router)
+## 9. Accessible widgets: roving tabindex
 
-- Files in `app/` are **Server Components** by default. They render to HTML on the server and ship no JavaScript.
-- `'use client'` at the top of a file makes it (and everything it imports) a **Client Component**, which can use state, effects and browser APIs.
-- Keep `'use client'` as low in the tree as possible. Here, `page.tsx` is a Server Component that renders the client island `<PianoApp />`.
-- `layout.tsx` wraps children in `<MotionProvider>`, a tiny Client Component. A Server Component *can render* a Client Component and pass it children.
+`SegmentedControl`, `RadioPads` and `FunctionTabs` follow the WAI-ARIA patterns for radio groups and tabs:
 
-## 10. Next.js file conventions used
+- The group has **one Tab stop** (`tabIndex={checked ? 0 : -1}`)
+- **Arrow keys** move the selection and focus
+- Roles and states: `role="radiogroup"` / `role="radio"` + `aria-checked`, `role="tablist"` / `role="tab"` + `aria-selected` + `aria-controls`
 
-| File | Convention |
-| --- | --- |
-| `app/layout.tsx` | Root layout: wraps every page; must render `<html>` and `<body>` |
-| `app/page.tsx` | The page for the `/` route |
-| `app/icon.svg` | Automatically becomes the browser tab icon |
-| `export const metadata` | Sets `<title>`, description, Open Graph tags |
-| `export const viewport` | Sets theme color (browser UI tint on mobile) |
-| `LayoutProps<'/'>` | Global type helper for layout props (no import needed) |
-| `next/font/google` | Downloads fonts at build time and self-hosts them, with no layout shift |
+The `Knob` is a `role="slider"` with `aria-valuenow/min/max/valuetext`, and supports arrows, Page Up/Down, Home/End.
 
-## 11. Framer Motion basics
+### Who gets the arrow keys?
+
+Arrow keys are also global shortcuts (octave, transpose). A focused control that handles a key calls `e.preventDefault()`, and the global listeners skip events where `e.defaultPrevented` is true. React's handlers run on the document before `window` listeners, so the order is guaranteed.
+
+### Mouse clicks don't steal focus
+
+Pads call `preventDefault()` on `mousedown`, so clicking a control doesn't focus it. Otherwise the next Space press would "click" that button instead of pressing the sustain pedal. Keyboard Tab focus still works.
+
+## 10. `ref` as a prop (React 19)
+
+In React 19, function components receive `ref` as a normal prop. No `forwardRef` needed:
 
 ```tsx
-<motion.button
-  animate={{ y: isActive ? 4 : 0, scale: isActive ? 0.98 : 1 }}
-  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-/>
+interface PadButtonProps extends ComponentProps<'button'> { … }   // includes ref
+<PadButton ref={(el) => { buttonsRef.current[i] = el; }} … />
 ```
 
-- `motion.x` is an animatable version of any HTML element
-- `animate` is the target; Motion animates to it whenever it changes
-- `initial` is the starting state on mount (used for entrance animations)
-- `AnimatePresence` + `exit` animate elements **as they're removed** (the glow bar, the "now playing" chips)
-- `type: 'spring'` uses physics instead of a fixed duration, so presses feel snappy and natural
-- `MotionConfig reducedMotion="user"` respects the OS accessibility setting app-wide
+## 11. Server and Client Components (Next.js App Router)
+
+- Files in `app/` are **Server Components** by default and ship no JavaScript.
+- `'use client'` marks a file (and its imports) as a **Client Component**.
+- Here, `page.tsx` stays a Server Component and renders the client island `<PianoApp />`. `layout.tsx` wraps children in `<MotionProvider>`, a tiny client component.
+
+## 12. Next.js conventions used
+
+| File / export | Purpose |
+| --- | --- |
+| `app/layout.tsx` | Root layout: `<html>`, `<body>`, fonts |
+| `app/page.tsx` | The `/` route |
+| `app/icon.svg` | Browser tab icon |
+| `export const metadata` | Title, description, Open Graph |
+| `export const viewport` | Theme color |
+| `LayoutProps<'/'>` | Global type helper (no import) |
+| `next/font/google` | Self-hosted fonts with CSS variables (`Instrument Sans`, `DotGothic16`) |
+
+## 13. Framer Motion
+
+```tsx
+<motion.button animate={{ y: isActive ? 4 : 0 }} transition={{ type: 'spring', stiffness: 600, damping: 32 }} />
+```
+
+- `animate`: the target state; Motion animates whenever it changes
+- `layoutId`: a **shared layout animation**. The segmented control's highlight and the tab underline slide between options because each option renders an element with the same `layoutId`
+- `AnimatePresence` + `exit`: animate elements as they leave. `mode="wait"` makes the next tab page enter after the previous one leaves (which is why tests use `await findBy…`)
+- `MotionConfig reducedMotion="user"`: respects the OS "reduce motion" setting app-wide
+
+**Motion with purpose.** Animations answer user actions (pressing keys and pedals, switching pages). The only unprompted motion is a single power-on sweep across the keys at load, done in CSS and disabled for reduced motion.

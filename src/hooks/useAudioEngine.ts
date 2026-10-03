@@ -1,82 +1,50 @@
 /**
  * @fileoverview React hook for managing the AudioEngine lifecycle.
  *
- * This hook wraps the AudioEngine class in React's lifecycle:
- * - Lazy initialization: AudioContext is created on first user interaction
- *   (required by browser autoplay policy)
- * - Stable callbacks: All returned functions maintain referential identity
- *   across re-renders (via useCallback)
- * - Cleanup: AudioContext is properly closed on component unmount
+ * Wraps the AudioEngine class in React's lifecycle:
+ * - Lazy creation: the engine object is created on first use, and its
+ *   AudioContext only on the first user gesture (browser autoplay policy)
+ * - Stable API: the returned object keeps the same identity across renders,
+ *   so it's safe to use as an effect dependency
+ * - Cleanup: the AudioContext is closed on unmount
  *
  * ## Usage
  * ```tsx
- * const { playNote, stopNote, setVolume } = useAudioEngine();
- *
- * // Play middle C
- * playNote('C4', 261.63);
- *
- * // Stop it
- * stopNote('C4');
+ * const audio = useAudioEngine();
+ * audio.playNote('C4', 261.63, { voices: [{ voice: 'grand', gain: 1 }], velocity: 0.8, midi: 60 });
+ * audio.stopNote('C4');
  * ```
  */
 
 'use client';
 
-import { useRef, useEffect, useCallback } from 'react';
-import { AudioEngine } from '@/lib/audio-engine';
-import { DEFAULT_VOLUME } from '@/lib/constants';
+import { useRef, useEffect, useMemo } from 'react';
+import { AudioEngine } from '@/lib/audio/audio-engine';
+import { Brilliance, PlayNoteOptions, ReverbType } from '@/types';
 
-export function useAudioEngine() {
-  /** Ref persists the engine instance across re-renders without triggering them */
+/** Everything the rest of the app may ask of the audio layer */
+export interface AudioControls {
+  /** Create/resume the AudioContext. Call from a user gesture. */
+  start(): void;
+  playNote(noteId: string, frequency: number, options: PlayNoteOptions): void;
+  stopNote(noteId: string): void;
+  stopAllNotes(): void;
+  setVolume(volume: number): void;
+  setReverb(type: ReverbType, level: number): void;
+  setBrilliance(brilliance: Brilliance): void;
+  setMetronomeVolume(volume: number): void;
+  scheduleClick(time: number, accent: boolean): void;
+  /** Audio-clock time in seconds */
+  getCurrentTime(): number;
+}
+
+export function useAudioEngine(): AudioControls {
+  /** Ref persists the engine across re-renders without triggering them */
   const engineRef = useRef<AudioEngine | null>(null);
-  /** Last requested volume, re-applied if the engine is recreated (e.g. after Fast Refresh) */
-  const volumeRef = useRef(DEFAULT_VOLUME);
 
-  /**
-   * Get the engine, creating it on first use.
-   * Constructing the engine is cheap — the AudioContext itself is only
-   * created by `init()`, which runs inside a user gesture.
-   */
-  const getEngine = useCallback(() => {
-    if (!engineRef.current) {
-      engineRef.current = new AudioEngine();
-      engineRef.current.setVolume(volumeRef.current);
-    }
-    return engineRef.current;
-  }, []);
-
-  /** Play a note (auto-initializes audio engine on first call) */
-  const playNote = useCallback(
-    (noteId: string, frequency: number) => {
-      const engine = getEngine();
-      engine.init();
-      engine.playNote(noteId, frequency);
-    },
-    [getEngine]
-  );
-
-  /** Stop a note with release envelope */
-  const stopNote = useCallback((noteId: string) => {
-    engineRef.current?.stopNote(noteId);
-  }, []);
-
-  /** Stop all currently playing notes */
-  const stopAllNotes = useCallback(() => {
-    engineRef.current?.stopAllNotes();
-  }, []);
-
-  /** Set master volume (0 to 1) — remembered even before audio starts */
-  const setVolume = useCallback(
-    (volume: number) => {
-      volumeRef.current = volume;
-      getEngine().setVolume(volume);
-    },
-    [getEngine]
-  );
-
-  // Cleanup: destroy audio engine when component unmounts. The ref is
-  // cleared so a remount (Strict Mode, Fast Refresh) gets a fresh engine
-  // instead of one whose AudioContext has been closed.
+  // Cleanup: close the AudioContext on unmount. Clearing the ref means a
+  // remount (Strict Mode, Fast Refresh) gets a fresh engine instead of a
+  // closed one; the settings effects in usePiano re-apply their values.
   useEffect(() => {
     return () => {
       engineRef.current?.destroy();
@@ -84,5 +52,25 @@ export function useAudioEngine() {
     };
   }, []);
 
-  return { playNote, stopNote, stopAllNotes, setVolume };
+  return useMemo<AudioControls>(() => {
+    /** Get the engine, creating it on first use (cheap: no AudioContext yet) */
+    const engine = () => (engineRef.current ??= new AudioEngine());
+
+    return {
+      start: () => engine().init(),
+      playNote: (noteId, frequency, options) => {
+        const e = engine();
+        e.init();
+        e.playNote(noteId, frequency, options);
+      },
+      stopNote: (noteId) => engineRef.current?.stopNote(noteId),
+      stopAllNotes: () => engineRef.current?.stopAllNotes(),
+      setVolume: (volume) => engine().setVolume(volume),
+      setReverb: (type, level) => engine().setReverb(type, level),
+      setBrilliance: (brilliance) => engine().setBrilliance(brilliance),
+      setMetronomeVolume: (volume) => engine().setMetronomeVolume(volume),
+      scheduleClick: (time, accent) => engineRef.current?.scheduleClick(time, accent),
+      getCurrentTime: () => engineRef.current?.currentTime ?? 0,
+    };
+  }, []);
 }

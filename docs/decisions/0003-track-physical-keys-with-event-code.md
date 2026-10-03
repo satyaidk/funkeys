@@ -1,6 +1,6 @@
 # ADR 0003: Match key releases by physical key (`event.code`)
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0006](./0006-map-notes-by-physical-key.md)
 - **Area:** Input (`src/hooks/useKeyboardInput.ts`)
 
 ## Context

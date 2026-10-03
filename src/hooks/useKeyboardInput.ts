@@ -1,57 +1,36 @@
 /**
- * @fileoverview React hook for handling keyboard input.
+ * @fileoverview React hook that turns computer-key presses into notes.
  *
- * This hook listens for keyboard events and maps physical key presses
- * to piano note callbacks. It handles several edge cases:
+ * Keys are matched by **physical position** (`KeyboardEvent.code`, e.g.
+ * 'KeyQ'), never by the character typed. That way:
+ * - Shift (the soft pedal) and Caps Lock can't change which note plays
+ * - The piano layout keeps its shape on AZERTY, QWERTZ or Dvorak keyboards
+ * - A key-up always stops exactly the note its key-down started, even if
+ *   the octave changed in between
  *
- * 1. **Key repeat prevention**: When you hold a key, the browser fires
- *    `keydown` repeatedly. We track pressed keys and ignore repeat events.
- *
- * 2. **Text field exclusion**: Keyboard shortcuts are disabled when
- *    the user is typing in a text field (prevents notes playing while
- *    typing). Non-text controls like the volume slider don't block play.
- *
- * 3. **Focus loss handling**: When the browser window loses focus
- *    (e.g., Alt+Tab), all held notes are released to prevent stuck notes.
- *
- * 4. **Modifier key exclusion**: Ctrl+, Alt+, and Meta+ combinations
- *    are ignored to avoid interfering with browser shortcuts.
- *
- * 5. **Reliable release**: Each physical key (`KeyboardEvent.code`)
- *    remembers the note it started, so the right note stops on key-up even
- *    if Shift changed the character (`;` → `:`) or the octave changed
- *    while the key was held.
- *
- * ## Usage
- * ```tsx
- * useKeyboardInput({
- *   notes,
- *   onNoteStart: (id, freq) => audioEngine.playNote(id, freq),
- *   onNoteStop: (id) => audioEngine.stopNote(id),
- * });
- * ```
+ * It also handles real-world edge cases:
+ * 1. **Key repeat**: holding a key fires repeated keydowns; they're ignored
+ * 2. **Text fields**: no notes while typing in an input
+ * 3. **Focus loss**: Alt+Tab while holding keys releases them (no stuck notes)
+ * 4. **Shortcuts**: Ctrl/Alt/Cmd combinations are left to the browser
+ * 5. **Handled keys**: events a control already handled (`defaultPrevented`) are skipped
  */
 
 'use client';
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Note } from '@/types';
 import { isTypingTarget } from '@/lib/dom';
 
 interface UseKeyboardInputOptions {
-  /** Array of notes available for playing */
+  /** Notes on the keyboard right now */
   notes: Note[];
-  /** Callback when a key is pressed — starts a note */
-  onNoteStart: (noteId: string, frequency: number) => void;
-  /** Callback when a key is released — stops a note */
+  /** A note's key went down */
+  onNoteStart: (noteId: string) => void;
+  /** A note's key came up */
   onNoteStop: (noteId: string) => void;
   /** Whether keyboard input is enabled (default: true) */
   enabled?: boolean;
-}
-
-/** Stable identifier for the physical key (falls back to the character on virtual keyboards) */
-function getPhysicalKey(e: KeyboardEvent): string {
-  return e.code || e.key.toLowerCase();
 }
 
 export function useKeyboardInput({
@@ -61,60 +40,40 @@ export function useKeyboardInput({
   enabled = true,
 }: UseKeyboardInputOptions) {
   /**
-   * Currently pressed physical keys → the note ID each one started.
-   * Using a ref (not state) because we don't need re-renders on key press.
+   * Physical keys currently down → the note id each one started.
+   * A ref (not state): only event handlers read it; it never affects rendering.
    */
   const pressedKeysRef = useRef<Map<string, string>>(new Map());
-
-  /** Look up a Note by its keyboard key */
-  const findNoteByKey = useCallback(
-    (key: string): Note | undefined => {
-      return notes.find((n) => n.keyboardKey === key.toLowerCase());
-    },
-    [notes]
-  );
 
   useEffect(() => {
     if (!enabled) return;
 
     const pressedKeys = pressedKeysRef.current;
+    const notesByCode = new Map(notes.map((note) => [note.code, note]));
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept when typing in form fields
-      if (isTypingTarget(e.target)) return;
-
-      // Ignore held keys (browser fires keydown repeatedly)
+      if (e.defaultPrevented || isTypingTarget(e.target)) return;
       if (e.repeat) return;
-
-      // Ignore modifier combos (Ctrl+C, Alt+Tab, etc.)
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (pressedKeys.has(e.code)) return;
 
-      const physicalKey = getPhysicalKey(e);
-
-      // Skip if this key is already pressed
-      if (pressedKeys.has(physicalKey)) return;
-
-      const note = findNoteByKey(e.key);
+      const note = notesByCode.get(e.code);
       if (note) {
-        e.preventDefault(); // Prevent default browser behavior
-        pressedKeys.set(physicalKey, note.id);
-        onNoteStart(note.id, note.frequency);
+        e.preventDefault(); // e.g. "/" opens quick-find in Firefox
+        pressedKeys.set(e.code, note.id);
+        onNoteStart(note.id);
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      const physicalKey = getPhysicalKey(e);
-      const noteId = pressedKeys.get(physicalKey);
+      const noteId = pressedKeys.get(e.code);
       if (noteId) {
-        pressedKeys.delete(physicalKey);
+        pressedKeys.delete(e.code);
         onNoteStop(noteId);
       }
     };
 
-    /**
-     * Release all notes when window loses focus.
-     * Prevents "stuck" notes if user Alt+Tabs while holding keys.
-     */
+    /** The browser never sends keyup for keys held while the window loses focus */
     const handleBlur = () => {
       pressedKeys.forEach((noteId) => onNoteStop(noteId));
       pressedKeys.clear();
@@ -129,5 +88,5 @@ export function useKeyboardInput({
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('blur', handleBlur);
     };
-  }, [enabled, findNoteByKey, onNoteStart, onNoteStop]);
+  }, [enabled, notes, onNoteStart, onNoteStop]);
 }
