@@ -8,17 +8,17 @@ export default function Home() {
       <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3 px-1">
         <div className="max-w-3xl">
           <h1 className="text-3xl font-semibold tracking-tight [font-stretch:90%]">
-            Keyboard Piano
+            PIANO Fun Keys
           </h1>
           <p className="mt-1.5 text-base leading-relaxed text-ink-muted">
-            A 37-key digital piano for your computer keyboard. Every note is synthesized live in your browser.
+             Made With Love and With Curiosity Of Music 
           </p>
         </div>
         <a
           href={REPO_URL}
           className="text-sm text-ink-muted underline decoration-white/20 underline-offset-4 transition-colors hover:text-ink hover:decoration-[var(--led)]"
         >
-          Source code and docs
+          Open for Contributions
         </a>
       </header>
 
