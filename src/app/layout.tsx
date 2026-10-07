@@ -18,14 +18,14 @@ const dotGothic = DotGothic16({
 });
 
 const description =
-  "A 37-key digital piano you play with your computer keyboard, with 8 voices, layer and split, three pedals, historical tunings, a metronome and a recorder. Every sound is synthesized live with the Web Audio API.";
+  "Made With Love and With Passion Of Music";
 
 export const metadata: Metadata = {
-  title: "Keyboard Piano",
+  title: "funkeys",
   description,
   // Shown when the link is shared (LinkedIn, Slack, X, …)
   openGraph: {
-    title: "Keyboard Piano",
+    title: "funkeys",
     description,
     type: "website",
   },
