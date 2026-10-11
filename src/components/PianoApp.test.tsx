@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import PianoApp from './PianoApp';
-import { installFakeAudioContext } from '@/test/fake-web-audio';
+import { installFakeAudioContext, latestAudioContext } from '@/test/fake-web-audio';
 
 const display = () => screen.getByRole('group', { name: 'Display' });
 const tab = (name: string) => screen.getByRole('tab', { name });
@@ -77,19 +77,50 @@ describe('PianoApp', () => {
     expect(screen.getByRole('button', { name: 'C7' })).toBeInTheDocument();
   });
 
-  it('loops a song from the Notes page until it is stopped', async () => {
+  it('plays a song from the Notes page, lighting its keys, until it is paused', async () => {
     render(<PianoApp />);
     fireEvent.click(tab('Notes'));
-    fireEvent.click(await screen.findByRole('radio', { name: /Seven Nation Army/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Play loop' }));
+    const [play] = await screen.findAllByRole('button', { name: 'Play Seven Nation Army' });
+    fireEvent.click(play);
 
-    // The riff opens on E4, played through the piano: its key lights up
+    // Notes are booked on the audio clock: move the (fake) clock into the first one, E4
+    latestAudioContext().currentTime = 0.2;
     const e4 = screen.getByRole('button', { name: 'E4' });
     await waitFor(() => expect(e4).toHaveAttribute('aria-pressed', 'true'));
+    expect(display()).toHaveTextContent('Seven Nation Army');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Stop loop' }));
-    expect(e4).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByRole('button', { name: 'Play loop' })).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Pause Seven Nation Army' })[0]);
+    await waitFor(() => expect(e4).toHaveAttribute('aria-pressed', 'false'));
+  });
+
+  it('finds songs by name in the library', async () => {
+    render(<PianoApp />);
+    fireEvent.click(tab('Notes'));
+    fireEvent.change(await screen.findByRole('searchbox'), { target: { value: 'moonlight' } });
+    const results = screen.getByRole('heading', { name: /Results/ });
+    expect(results).toHaveTextContent('1');
+  });
+
+  it('opens Audio to Piano from the header', async () => {
+    render(<PianoApp />);
+    fireEvent.click(screen.getByRole('button', { name: 'Audio to Piano' }));
+    expect(tab('Audio to Piano')).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByText(/Turn a piano recording into notes/)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing is uploaded or stored/)).toBeInTheDocument();
+  });
+
+  it('shifts the octave from the on-screen buttons and shows the range', () => {
+    render(<PianoApp />);
+    expect(screen.getByLabelText('Keyboard range')).toHaveTextContent('C3–C6');
+    fireEvent.click(screen.getByRole('button', { name: 'Octave up' }));
+    expect(screen.getByLabelText('Keyboard range')).toHaveTextContent('C4–C7');
+    expect(screen.getByRole('button', { name: 'C7' })).toBeInTheDocument();
+  });
+
+  it('opens the keyboard shortcuts', () => {
+    render(<PianoApp />);
+    fireEvent.click(screen.getByRole('button', { name: /Keyboard shortcuts|Shortcuts/ }));
+    expect(screen.getByRole('heading', { name: 'How to play' })).toBeInTheDocument();
   });
 
   it('plays a note when a key is clicked', () => {

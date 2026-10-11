@@ -1,6 +1,6 @@
 # Testing
 
-**257 automated tests** across 27 files, running in about 15 seconds with `npm test`, and on every push via CI.
+**448 unit and integration tests** across 38 files, running in about 15 seconds with `npm test`, plus a **Playwright end-to-end suite** that runs the real app in Chromium on a desktop and a phone-sized touch screen. Both run on every push via CI.
 
 ---
 
@@ -35,9 +35,9 @@ npm run validate         # lint + typecheck + test + build (what CI runs)
 ```
               ▲  fewer, slower, more realistic
              ╱ ╲
-            ╱E2E╲          (next: Playwright, see roadmap)
+            ╱E2E╲          e2e/*.spec.ts: Playwright, real Chromium (desktop + phone)
            ╱─────╲
-          ╱ Integ. ╲       PianoApp, usePiano, useRecorder, useMetronome, useLooper
+          ╱ Integ. ╲       PianoApp, usePiano, useRecorder, useMetronome, useSequencePlayer, transcriber
          ╱───────────╲
         ╱    Unit      ╲   lib/**, ui primitives, piano & console components
        ╱─────────────────╲
@@ -47,36 +47,47 @@ npm run validate         # lint + typecheck + test + build (what CI runs)
 | --- | --- | --- |
 | **lib/music** | | |
 | `notes.test.ts` | MIDI ↔ id conversions, frequencies, colors | 9 |
-| `keyboard-map.test.ts` | 37 keys, contiguous C3–C6, unique codes, black-key gaps, octave shift | 7 |
+| `keyboard-map.test.ts` | 37 keys; **the pitch of every key at every octave shift** (MIDI, name, frequency); white/black pattern; range; best-fit octave | 20 |
 | `tuning.test.ts` | Master tuning, transpose, temperament invariants (pure 5/4 and 3/2) | 10 |
-| `sequence.test.ts` | Melody format: note values, dots, rests, chords, bar lines, error messages | 8 |
-| `riffs.test.ts` | Every riff parses, fits C3–C6 and fills whole bars; lookup, bar lengths | 12 |
-| `looper.test.ts` | Note timing and gate, looping, no drift after a late timer, recovery, stop, re-strikes | 8 |
+| `sequence.test.ts` | Melody format: note values, dots, **exact triplets**, rests, chords, bar lines, two-hand parts, error messages | 14 |
+| `note-events.test.ts` | Beats ⇄ seconds, timing a melody, sorting, validation of untrusted notes, edits | 16 |
+| `songs.test.ts` | Every song parses, stays on 88 keys and fills whole bars in every part; labels; search, filters, curated picks | 41 |
+| `midi-file.test.ts` | Variable-length numbers, MIDI round trips (to a millisecond, five minutes long), running status, tempo | 8 |
 | **lib/audio** | | |
 | `voices.test.ts` | Every recipe valid; single/layer/split routing | 15 |
 | `dynamics.test.ts` | Touch curves, position velocity, velocity → gain | 6 |
 | `effects.test.ts` | Impulse responses: length, pre-delay, decay | 3 |
-| `synth-voice.test.ts` | Partials, inharmonicity, velocity, soft pedal, FM, LFOs, noise, release, cleanup | 17 |
-| `audio-engine.test.ts` | Init, master chain, layers, polyphony, release, reverb cache, brilliance, clicks | 21 |
+| `synth-voice.test.ts` | Partials, inharmonicity, velocity, soft pedal, FM, LFOs, noise, release, **cancel after a booked release**, cleanup | 21 |
+| `audio-engine.test.ts` | Init, master chain, layers, polyphony, release, **scheduled notes**, reverb cache, brilliance, clicks | 26 |
 | `metronome.test.ts` | Beat spacing, accents (4/4, 6/8), lookahead, tempo change, tap tempo | 12 |
+| `sequence-player.test.ts` | Exact audio-clock times, chords, overlaps, a one-minute silence, a five-minute piece, pause/resume/seek/stop, speed, loop, no double booking | 28 |
+| **lib/transcription** | | |
+| `audio-file.test.ts` | Accepted types, size and length limits, browsers that can't decode a format | 9 |
+| `notes-from-frames.test.ts` | Chunk plan; **chunked decoding equals one pass**; overtone cleanup; piano notes | 14 |
+| `transcriber.test.ts` | Whole flow with a fake worker: progress, transfer, validation, errors, stalls, cancel; the worker's own steps | 11 |
+| `editor.test.ts` | Select, edit, delete, add, undo/redo, history limit; the notes file format | 13 |
+| `model-files.test.ts` | The served model matches the installed package byte for byte | 4 |
 | **lib** | | |
 | `note-tracker.test.ts` | Sustain and sostenuto rules, including combinations | 11 |
+| `pointer-tracker.test.ts` | Fingers on keys: chords, glissando, sliding off, shared keys | 7 |
+| `voicing.test.ts` | Frequency, transpose, split by keyboard position | 4 |
 | `settings.test.ts` | Clamping, rounding, tuning grid, key wrap-around | 6 |
-| `dom.test.ts` | Typing targets vs. non-text inputs | 12 |
+| `dom.test.ts` | Typing targets vs. non-text inputs; controls that use the arrows | 14 |
+| `format.test.ts`, `favorites.test.ts` | Clock and size formats; saved favorites | 8 |
 | **hooks** | | |
-| `usePiano.test.tsx` | Keyboard play, both manuals, shortcuts, pedals, layer/split, recorder events | 26 |
+| `usePiano.test.tsx` | Keyboard play, both manuals, shortcuts (incl. the sostenuto key), sliders keep their arrows, pedals, hidden tab, layer/split, recorder events | 29 |
 | `useRecorder.test.ts` | Record timing, playback, stop, clear | 8 |
 | `useMetronome.test.ts` | Start, beat lights, tempo clamp, time signatures, tap | 6 |
-| `useLooper.test.ts` | Start, loop, stop, switching riffs, speed, octave shift, unmount | 8 |
+| `useSequencePlayer.test.ts` | Playback through the engine with the piano's tuning, key lighting, one source at a time, position | 10 |
 | **components** | | |
-| `Piano.test.tsx` | 37 keys, labels (incl. layout map), pointer input, split labels | 9 |
+| `Piano.test.tsx` | 37 keys, labels, pointer input: **glissando, multi-finger chords**, cancel, blur, hidden tab, screen-reader activation, playback lighting, octave toolbar | 17 |
 | `PedalUnit.test.tsx` | Order, pressed state, toggle | 4 |
 | `Display.test.tsx` | LCD content per mode, tuning, notes, recorder, time format | 7 |
-| `Transport.test.tsx` | Recorder buttons + tabs keyboard navigation | 6 |
+| `Transport.test.tsx` | Recorder buttons + tabs keyboard navigation, controlled tabs | 7 |
 | `Knob.test.tsx` | ARIA, keyboard steps, drag, handled keys | 4 |
 | `SegmentedControl.test.tsx` | Radio semantics, roving tabindex, arrows; RadioPads | 7 |
 | `Stepper.test.tsx` | Single step, hold-to-repeat, keyboard activation, limits | 6 |
-| `PianoApp.test.tsx` | Everything wired together, including a Notes loop | 9 |
+| `PianoApp.test.tsx` | Everything wired together: a song lighting keys on the audio clock, search, header links, octave buttons, shortcuts | 13 |
 
 ## 5. Anatomy of a test
 
@@ -123,9 +134,8 @@ Three techniques keep time-based code deterministic:
 | Technique | Used for |
 | --- | --- |
 | **Fake audio clock**: set `ctx.currentTime` by hand | Envelopes, releases, the polyphony limit |
-| **Fake clock object** implementing `MetronomeClock` | The metronome scheduler, in isolation |
-| **`vi.useFakeTimers()`** + `vi.advanceTimersByTime(ms)` | Recorder playback, the looper, Stepper hold-to-repeat, beat lights |
-| **`vi.setSystemTime()`** mid-test | Simulating a busy main thread: timers fire late, and the looper must stay on its timeline |
+| **Fake clock object** implementing `MetronomeClock` / `PlaybackClock` | The metronome and sequence player schedulers, in isolation: the test moves the audio clock and the timers together |
+| **`vi.useFakeTimers()`** + `vi.advanceTimersByTime(ms)` | Recorder playback, Stepper hold-to-repeat, beat lights, the player's 25 ms tick |
 
 ```ts
 act(() => result.current.play(performer));
@@ -133,7 +143,7 @@ act(() => vi.advanceTimersByTime(100));
 expect(performer.noteOn).toHaveBeenCalledWith('C4', 0.8);
 ```
 
-The recorder and the looper use `Date.now()` rather than `performance.now()` precisely so fake timers control it.
+The recorder uses `Date.now()` rather than `performance.now()` precisely so fake timers control it.
 
 > **Fake-timer detail:** a zero-delay `setTimeout` created *inside* another timer runs 1 ms later under fake timers. Assert on behavior ("one fresh start, not a burst") rather than on that exact millisecond.
 
@@ -178,6 +188,10 @@ Hooks that take dependencies are easy to isolate. `useMetronome` gets a hand-mad
 | Ctrl+arrows changed the octave | `usePiano`: *leaves Ctrl+arrow combinations to the browser* |
 | Lifting sustain cut notes still held | `usePiano` / `note-tracker`: *does not cut notes that are still held…* |
 | Arrow keys on a focused control also moved the octave | `Knob`: *marks handled keys so global shortcuts ignore them* + `usePiano`: *skips keys a focused control already handled* |
+| Arrow keys on the focused tempo slider also moved the octave (native range inputs don't call `preventDefault`) | `usePiano`: *leaves the arrows to a focused slider* |
+| Three triplets added up to 0.9999… beats | `sequence`: *makes a triplet two-thirds as long, three to a beat* |
+| Changing speed during the first 50 ms skipped the opening notes | `sequence-player`: *keeps the first notes when the speed changes the instant playback starts* |
+| A TensorFlow.js error inside the worker left the page waiting forever | `transcriber`: *gives up when the worker goes silent* |
 
 > **Verify tests can fail.** After writing a test, break the code on purpose and watch it go red. For example, removing the sostenuto check in `NoteTracker.isPedalHolding` makes four tests fail.
 
@@ -193,5 +207,26 @@ Hooks that take dependencies are easy to isolate. `useMetronome` gets a hand-mad
 ## 12. What isn't tested (yet)
 
 - **How it sounds.** Synthesis quality needs ears
-- **Pixels.** Colors and layout; candidates for screenshot tests
-- **Real browsers.** jsdom isn't Chrome; Playwright E2E tests would cover this ([roadmap](./roadmap.md))
+- **Pixels.** Colors and visual polish; candidates for screenshot comparison tests (layout overflow *is* tested, below)
+- **Other browsers.** The end-to-end suite runs Chromium only; Firefox and WebKit projects are a one-line addition each
+- **Real piano recordings.** The transcription test uses a synthesized recording with known notes
+
+## 13. End-to-end tests (Playwright)
+
+Unit tests can't see layout, real touch events, the audio clock in a browser, a Web Worker or the transcription model. `e2e/*.spec.ts` runs the **production build** in Chromium, as two projects: a 1440 × 900 desktop and a 375 × 667 touch phone.
+
+```bash
+npm run build
+npm run test:e2e                       # starts the server on port 3100 by itself
+npx playwright test -g "chord"         # only tests whose name matches
+npx playwright show-report             # after a failure: traces, screenshots
+```
+
+| Spec | Checks |
+| --- | --- |
+| `piano.spec.ts` | Computer-key notes and chords; mouse; **a three-finger touch chord** (several touch points through the DevTools protocol, which Playwright's one-finger `tap` can't do); glissando; octave buttons; the docked keyboard and minimap on a phone; **no sideways scrolling on any page at 320, 360, 375, 390, 430, 768, 1024 and 1440 px**; the shortcuts dialog |
+| `playback.spec.ts` | A song lights its keys; **a full transcription** of `e2e/fixtures/piano-fixture.wav` with the real Basic Pitch model, scored against the notes that were played (recall ≥ 90%, precision ≥ 80%; it currently gets 25/25 and no false notes), played back and exported as MIDI; a non-audio file explained |
+
+The fixture is **synthesized with known notes** by `npm run fixture:piano` (a scale, a silence, chords, a melody over a held bass), so the test has exact ground truth. It's not a real piano recording: real recordings will score lower.
+
+CI runs the suite in its own job (`npx playwright install --with-deps chromium` first) and keeps the HTML report when it fails.

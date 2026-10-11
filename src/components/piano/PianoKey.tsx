@@ -7,10 +7,10 @@
  * - Ringing (`isSustained`, key up): a softer glow while a pedal holds the note
  *
  * **Input**
- * Pointer events cover mouse, touch and pen. Where you press sets the
- * velocity: nearer the front edge plays louder. `touch-action: pan-x`
- * lets phones scroll the keyboard sideways; a sideways swipe cancels the
- * press (pointercancel) instead of leaving a stuck note.
+ * Keys don't listen for the pointer themselves: the keyboard (`Piano`)
+ * handles every pointer in one place, so fingers can slide from key to
+ * key and play chords. Each key carries `data-note-id` so the keyboard can
+ * tell which key is under a finger.
  *
  * **Accessibility**
  * Each key is a button labelled with its note ("C#4") and `aria-pressed`.
@@ -23,11 +23,10 @@
 
 'use client';
 
-import { memo, useRef } from 'react';
+import { memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Note } from '@/types';
 import { getNoteColor } from '@/lib/music/notes';
-import { velocityFromPosition } from '@/lib/audio/dynamics';
 import {
   WHITE_KEY_WIDTH,
   WHITE_KEY_HEIGHT,
@@ -43,8 +42,6 @@ export interface PianoKeyProps {
   index: number;
   isActive: boolean;
   isSustained?: boolean;
-  onNoteOn: (noteId: string, velocity: number) => void;
-  onNoteOff: (noteId: string) => void;
 }
 
 const WHITE_WIDTH = `var(--white-key-width, ${WHITE_KEY_WIDTH}px)`;
@@ -60,38 +57,10 @@ const PianoKey = memo(function PianoKey({
   index,
   isActive,
   isSustained = false,
-  onNoteOn,
-  onNoteOff,
 }: PianoKeyProps) {
   const color = getNoteColor(note.name);
   const isRinging = isSustained && !isActive;
   const lit = isActive || isRinging;
-
-  /** Did *this pointer* press the key? Hovering past a key held on the keyboard mustn't stop it. */
-  const pointerDownRef = useRef(false);
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
-    if (e.button !== 0) return; // right-click opens a menu that swallows pointerup
-    e.preventDefault(); // no focus, no text selection
-    const rect = e.currentTarget.getBoundingClientRect();
-    const fraction = rect.height > 0 ? (e.clientY - rect.top) / rect.height : 0.75;
-    pointerDownRef.current = true;
-    onNoteOn(note.id, velocityFromPosition(fraction));
-  };
-
-  const handlePointerRelease = () => {
-    if (!pointerDownRef.current) return;
-    pointerDownRef.current = false;
-    onNoteOff(note.id);
-  };
-
-  const pointerHandlers = {
-    onPointerDown: handlePointerDown,
-    onPointerUp: handlePointerRelease,
-    onPointerLeave: handlePointerRelease,
-    onPointerCancel: handlePointerRelease,
-    onContextMenu: (e: React.MouseEvent) => e.preventDefault(), // long-press menu on phones
-  };
 
   /** Single power-on sweep, staggered left to right (CSS; disabled for reduced motion) */
   const chase = (
@@ -113,7 +82,8 @@ const PianoKey = memo(function PianoKey({
         tabIndex={-1}
         aria-label={note.id}
         aria-pressed={isActive}
-        className="absolute z-10 cursor-pointer select-none overflow-hidden rounded-b-[5px] touch-pan-x focus:outline-none"
+        data-note-id={note.id}
+        className="absolute z-10 cursor-pointer select-none overflow-hidden rounded-b-[5px] focus:outline-none"
         style={{
           width: BLACK_WIDTH,
           height: BLACK_HEIGHT,
@@ -131,7 +101,6 @@ const PianoKey = memo(function PianoKey({
         }}
         animate={{ y: isActive ? 3 : 0, scaleY: isActive ? 0.985 : 1 }}
         transition={PRESS_SPRING}
-        {...pointerHandlers}
       >
         {chase}
         <span
@@ -154,7 +123,8 @@ const PianoKey = memo(function PianoKey({
       tabIndex={-1}
       aria-label={note.id}
       aria-pressed={isActive}
-      className="relative flex shrink-0 cursor-pointer select-none flex-col items-center justify-end overflow-hidden rounded-b-[6px] pb-3 touch-pan-x focus:outline-none"
+      data-note-id={note.id}
+      className="relative flex shrink-0 cursor-pointer select-none flex-col items-center justify-end overflow-hidden rounded-b-[6px] pb-3 focus:outline-none"
       style={{
         width: WHITE_WIDTH,
         height: WHITE_HEIGHT,
@@ -173,7 +143,6 @@ const PianoKey = memo(function PianoKey({
       }}
       animate={{ y: isActive ? 4 : 0 }}
       transition={PRESS_SPRING}
-      {...pointerHandlers}
     >
       {chase}
 

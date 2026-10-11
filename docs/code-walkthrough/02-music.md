@@ -1,6 +1,6 @@
 # Part 2: Music (`src/lib/music/`)
 
-Plain TypeScript for the music-theory side: naming notes, laying out the keyboard, tuning, and the song loops of the Notes page. No React, no audio. Background reading: [Music theory for programmers](../concepts/music-theory.md).
+Plain TypeScript for the music-theory side: naming notes, laying out the keyboard, tuning, and the melody format behind the Notes library. No React, no audio. Background reading: [Music theory for programmers](../concepts/music-theory.md).
 
 | File | Responsibility |
 | --- | --- |
@@ -8,8 +8,7 @@ Plain TypeScript for the music-theory side: naming notes, laying out the keyboar
 | [`keyboard-map.ts`](#keyboard-mapts) | The 37-key layout on the computer keyboard |
 | [`tuning.ts`](#tuningts) | Transpose, master tuning, temperaments → frequency |
 | [`sequence.ts`](#sequencets) | A text format for melodies (`E5/8 D#5/8`) and its parser |
-| [`riffs.ts`](#riffsts) | The song library: famous riffs for the Notes page |
-| [`looper.ts`](#looperts) | Plays a melody on the piano over and over, without drifting |
+| [`songs.ts`, `song-library.ts`, `note-events.ts`, `midi-file.ts`](#songsts-song-libraryts-note-eventsts-midi-filets) | The Notes library, timed notes in seconds, MIDI files (Part 8) |
 
 ---
 
@@ -178,61 +177,6 @@ Times come out in **beats** (one beat = a quarter note), not milliseconds, so th
 
 ---
 
-## `riffs.ts`
+## `songs.ts`, `song-library.ts`, `note-events.ts`, `midi-file.ts`
 
-### Purpose
-
-The song library behind the **Notes** tab: each riff is a title, artist, original tempo, time signature and a melody string.
-
-```ts
-{
-  id: 'tokyo-drift',
-  title: 'Tokyo Drift',
-  artist: 'Teriyaki Boyz',
-  bpm: 130,
-  timeSignature: '4/4',
-  melody: 'A#4/8. B4/8. D#5/8 A#4/4 A#4/4',   // the 3 + 3 + 2 stab
-},
-```
-
-`beatsPerBar('6/8')` converts a time signature to quarter-note beats (6 × 4 / 8 = 3).
-
-### Why it's built this way
-
-It's **data, not code**, like the voice recipes ([ADR 0009](../decisions/0009-data-driven-voice-recipes.md)): the UI lists whatever is in `RIFFS`. The tests do the checking a reviewer would otherwise have to do by ear, once per song: it parses, every note lies in C3–C6 (so it lights a visible key), and the total length is a whole number of bars (a loop that ends mid-bar stumbles each time round).
-
----
-
-## `looper.ts`
-
-### Purpose
-
-Plays a parsed melody **on a target** (the piano's `noteOn`/`noteOff`) again and again until stopped, like a loop pedal. See [ADR 0012](../decisions/0012-loop-riffs-through-the-piano.md).
-
-### Code explained
-
-```ts
-private bookPass(passStart: number): void {
-  for (const note of sequence.notes) {
-    const gate = note.length * this.msPerBeat * LOOP_GATE;               // sound for 90%
-    this.at(passStart + note.start * this.msPerBeat, () => this.press(note.midi, gate));
-  }
-  const nextPass = passStart + sequence.beats * this.msPerBeat;
-  this.at(nextPass - LOOP_SCHEDULE_AHEAD_MS, () => this.bookPass(nextPass));
-}
-```
-
-- **`at(time)` takes an absolute time**, so every note is measured from the same timeline. If one timer fires 20 ms late, only that note is late: the next one is still booked from `passStart`, not from "whenever the last one happened". That's why the loop never drifts.
-- **Gate:** releasing at 90% leaves a short gap, so `A#4 A#4` is heard as two notes.
-- **`held` map:** remembers which *press* holds each key. If a key is pressed again before its release timer fires, the old timer sees a newer press and leaves the key alone.
-- **`noteIdFor`:** a function passed in to choose the key for each note. The hook uses it to follow the octave shift.
-- If timers fall more than 250 ms behind (a background tab), the pass restarts from now instead of firing every missed note at once.
-
-### Why it's built this way
-
-Same split as the metronome: a plain class with the timing rules (8 tests with fake timers, no React), and a thin hook on top. It plays through the piano, not straight into the audio engine, so the keys light up and every setting applies.
-
-### 🧪 Try it yourself
-
-1. Add a riff: write the melody string, add the entry to `RIFFS`, run `npx vitest run riffs`. The tests tell you if a bar is a sixteenth short.
-2. Add **ties** to the format: `F4/2~F4/8` for one note lasting both values. Write the parser test first, then use it to put a bar line inside Axel F's long last note (it's written across two bars today).
+The riff library (`riffs.ts`) and its looper (`looper.ts`) grew into the **Notes library** and an audio-clock player: songs with both hands, categories and honest source labels, timed in seconds through `note-events.ts`, played by `SequencePlayer`, and exportable with `midi-file.ts`. The original riffs are still there, unchanged. All of it is explained in [Part 8](./08-playback-and-transcription.md); the decision is [ADR 0013](../decisions/0013-play-sequences-on-the-audio-clock.md), which supersedes ADR 0012.

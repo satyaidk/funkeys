@@ -16,6 +16,7 @@ function fakeAudio() {
     setBrilliance: vi.fn(),
     setMetronomeVolume: vi.fn(),
     scheduleClick: vi.fn(),
+    scheduleNote: vi.fn(() => null),
     getCurrentTime: () => now,
   };
   return { audio, advance: (seconds: number) => (now += seconds) };

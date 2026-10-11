@@ -19,7 +19,7 @@
 'use client';
 
 import { useRef, useEffect, useMemo } from 'react';
-import { AudioEngine } from '@/lib/audio/audio-engine';
+import { AudioEngine, ScheduledNote } from '@/lib/audio/audio-engine';
 import { Brilliance, PlayNoteOptions, ReverbType } from '@/types';
 
 /** Everything the rest of the app may ask of the audio layer */
@@ -34,6 +34,8 @@ export interface AudioControls {
   setBrilliance(brilliance: Brilliance): void;
   setMetronomeVolume(volume: number): void;
   scheduleClick(time: number, accent: boolean): void;
+  /** Book a note between two audio-clock times (playback); null before the context exists */
+  scheduleNote(frequency: number, options: PlayNoteOptions, startTime: number, endTime: number): ScheduledNote | null;
   /** Audio-clock time in seconds */
   getCurrentTime(): number;
 }
@@ -70,6 +72,8 @@ export function useAudioEngine(): AudioControls {
       setBrilliance: (brilliance) => engine().setBrilliance(brilliance),
       setMetronomeVolume: (volume) => engine().setMetronomeVolume(volume),
       scheduleClick: (time, accent) => engineRef.current?.scheduleClick(time, accent),
+      scheduleNote: (frequency, options, startTime, endTime) =>
+        engineRef.current?.scheduleNote(frequency, options, startTime, endTime) ?? null,
       getCurrentTime: () => engineRef.current?.currentTime ?? 0,
     };
   }, []);

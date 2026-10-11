@@ -10,6 +10,7 @@
 'use client';
 
 import { PedalState, PianoSettings, RecorderStatus } from '@/types';
+import { PlaybackState } from '@/lib/audio/sequence-player';
 import { getVoice } from '@/lib/audio/voices';
 import { getTemperament } from '@/lib/music/tuning';
 import { KEY_NAMES } from '@/lib/music/notes';
@@ -23,6 +24,8 @@ interface DisplayProps {
   soundingNotes: string[];
   metronome: { running: boolean; bpm: number; timeSignature: string; beat: number | null; beatsPerBar: number };
   recorder: { status: RecorderStatus; elapsed: number; duration: number };
+  /** A song or transcription playing or paused, if any */
+  playback?: { title: string; state: PlaybackState } | null;
 }
 
 export function formatTime(ms: number): string {
@@ -43,7 +46,7 @@ function Cell({ label, value, changed }: { label: string; value: string; changed
   );
 }
 
-export default function Display({ settings, pedals, soundingNotes, metronome, recorder }: DisplayProps) {
+export default function Display({ settings, pedals, soundingNotes, metronome, recorder, playback }: DisplayProps) {
   const main = getVoice(settings.voice).name;
   const temperament = getTemperament(settings.temperament);
 
@@ -69,13 +72,13 @@ export default function Display({ settings, pedals, soundingNotes, metronome, re
       aria-label="Display"
       role="group"
     >
-      <div className="lcd-grid relative flex h-full min-h-[124px] flex-col justify-between gap-2.5 rounded-md px-4 py-3 font-lcd text-led [text-shadow:0_0_6px_rgb(255_181_71/0.45)]">
+      <div className="lcd-grid relative flex h-full min-h-[112px] flex-col justify-between gap-2 rounded-md px-3 py-2.5 font-lcd text-led [text-shadow:0_0_6px_rgb(255_181_71/0.45)] sm:min-h-[124px] sm:gap-2.5 sm:px-4 sm:py-3">
         {/* Row 1: voice(s) + tempo */}
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="truncate text-2xl leading-tight sm:text-[1.7rem]">{main}</p>
-            <p className={`truncate text-sm ${subtitle ? 'text-led/80' : 'text-led/25'}`}>
-              {subtitle ?? 'Single voice'}
+            <p className="truncate text-xl leading-tight sm:text-[1.7rem]">{main}</p>
+            <p className={`truncate text-sm ${subtitle || playback ? 'text-led/80' : 'text-led/25'}`}>
+              {playback ? `${playback.state === 'playing' ? '▶' : '❚❚'} ${playback.title}` : (subtitle ?? 'Single voice')}
             </p>
           </div>
           <div className={`shrink-0 text-right ${metronome.running ? 'text-led' : 'text-led/35'}`}>
@@ -95,7 +98,7 @@ export default function Display({ settings, pedals, soundingNotes, metronome, re
         </div>
 
         {/* Row 2: tuning + recorder */}
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px]">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] sm:gap-x-5 sm:text-[13px]">
           <Cell label="Transpose" value={signed(settings.transpose)} changed={settings.transpose !== 0} />
           <Cell label="Octave" value={signed(settings.octaveShift)} changed={settings.octaveShift !== 0} />
           <Cell

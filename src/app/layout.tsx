@@ -33,6 +33,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#1a1220",
+  // Draw under the notch / home indicator; the page pads itself with the safe-area insets
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

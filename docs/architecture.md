@@ -1,6 +1,6 @@
 # Architecture
 
-How Keyboard Piano is put together: the layers, how a key press becomes sound, where state lives, and why it's designed this way. Read this before the [code walkthrough](./code-walkthrough/) so each file has a place in your head.
+How FunKeys is put together: the layers, how a key press becomes sound, where state lives, and why it's designed this way. Read this before the [code walkthrough](./code-walkthrough/) so each file has a place in your head.
 
 ---
 
@@ -8,13 +8,14 @@ How Keyboard Piano is put together: the layers, how a key press becomes sound, w
 
 A browser-based **digital piano** with the functions of a real one:
 
-- **37 keys (C3–C6)** on all four letter/number rows of the computer keyboard, plus mouse and multi-touch
+- **37 keys (C3–C6)** on all four letter/number rows of the computer keyboard, plus mouse and multi-touch (chords, glissando); on phones the keyboard docks to the bottom of the screen with a minimap
 - **8 synthesized voices**, **Layer** and **Split** modes
 - **Three pedals**: soft, sostenuto, sustain
 - **Touch sensitivity**, **reverb**, **brilliance**
 - **Transpose**, **master tuning** (A4 415.3–466.2 Hz) and **6 temperaments**
 - **Metronome** with tap tempo, and a **recorder**
-- **Notes page**: famous riffs that loop on the keyboard until stopped, keys lighting up as they play
+- **Notes library**: 27 songs (public-domain pieces, riffs by ear, exercises) played on the audio clock, keys lighting up, with seek, speed and loop
+- **Audio to Piano**: a piano recording transcribed in the browser by Spotify's Basic Pitch, edited in a piano roll, played by the FunKeys piano, exported as MIDI
 - A hardware-style interface: LCD display, knobs, pads with LEDs, a fallboard and brass pedals
 
 What each function means on a real piano: [Digital piano functions](./concepts/piano-functions.md).
@@ -29,8 +30,10 @@ What each function means on a real piano: [Digital piano functions](./concepts/p
 | Tailwind CSS | 4 | Utility styling with design tokens defined in CSS |
 | Framer Motion | 14 | Spring and layout animations |
 | Web Audio API | browser | Real-time synthesis, effects and scheduling |
-| Vitest + Testing Library | 5 / 16 | 257 unit and integration tests |
-| GitHub Actions | | CI: lint, type-check, test, build |
+| Vitest + Testing Library | 5 / 16 | 448 unit and integration tests |
+| Basic Pitch + TensorFlow.js | 1.0 / 3.21 | Polyphonic transcription, in a Web Worker |
+| Playwright | 1.56 | End-to-end tests in Chromium (desktop and phone) |
+| GitHub Actions | | CI: lint, type-check, test, build, end-to-end |
 
 ## 3. Layered design
 
@@ -49,20 +52,22 @@ flowchart TB
         usePiano --> useKeyboardInput
         useMetronome
         useRecorder
-        useLooper
+        useSequencePlayer
+        useTranscription
         useAudioEngine
     end
 
     subgraph Lib["⚙️ Core: src/lib (plain TypeScript, no React)"]
         direction LR
-        music["music/: notes, keyboard-map, tuning, sequence, riffs, looper"]
-        audio["audio/: audio-engine, synth-voice, voices, dynamics, effects, metronome"]
-        state["note-tracker, settings, constants, dom"]
+        music["music/: notes, keyboard-map, tuning, sequence, note-events, songs, midi-file"]
+        audio["audio/: audio-engine, synth-voice, voices, dynamics, effects, metronome, sequence-player"]
+        transcription["transcription/: audio-file, decode, notes-from-frames, worker, transcriber, editor"]
+        state["note-tracker, pointer-tracker, voicing, settings, constants, dom"]
     end
 
-    Browser["🌐 Web Audio API · keyboard & pointer events · Keyboard Map API"]
+    Browser["🌐 Web Audio API · Web Worker · keyboard & pointer events · Keyboard Map API"]
 
-    PianoApp --> usePiano & useMetronome & useRecorder & useLooper & useAudioEngine
+    PianoApp --> usePiano & useMetronome & useRecorder & useSequencePlayer & useTranscription & useAudioEngine
     Hooks --> Lib
     Lib --> Browser
 ```
@@ -76,7 +81,7 @@ flowchart TB
 
 **Why it matters:**
 
-- **Testable.** 157 of the 257 tests exercise `lib/` directly, with no rendering.
+- **Testable.** Most of the 448 tests exercise `lib/` directly, with no rendering: the scheduler with a fake clock, the transcription decoder with hand-built model output.
 - **Replaceable.** A sample-based engine could replace the synthesizer without touching a component.
 - **Navigable.** Sound wrong? Look in `lib/audio`. Looks wrong? `components/`. Pedals behaving oddly? `note-tracker.ts`.
 
@@ -86,22 +91,29 @@ flowchart TB
 src/
 ├── app/                      # Next.js route: layout, page, global styles/tokens, icon
 ├── components/
-│   ├── PianoApp.tsx          # Client root: creates the hooks, lays out the cabinet
+│   ├── PianoApp.tsx          # Client root: creates the hooks, lays out the page
 │   ├── KeyGuide.tsx          # Which computer keys do what
+│   ├── ShortcutsDialog.tsx   # Every control, in a native <dialog>
 │   ├── console/              # Control panel
-│   │   ├── ConsolePanel.tsx  # Container: volume, display, recorder, function tabs
+│   │   ├── ConsolePanel.tsx  # Volume, display, recorder
 │   │   ├── Display.tsx       # Dot-matrix LCD readout
 │   │   ├── Transport.tsx     # Record / play / stop
+│   │   ├── Workspace.tsx     # Container for the function pages
 │   │   ├── FunctionTabs.tsx  # Accessible tabs with LED indicators
 │   │   └── panels/           # Voice, LayerSplit, Sound, Tuning, Metronome, Notes
-│   ├── piano/                # Piano (keys, fallboard, cheeks), PianoKey, PedalUnit
-│   ├── ui/                   # Design-system primitives: Knob, SegmentedControl, Stepper, RadioPads, PadButton, Led, Field
-│   └── layout/               # MotionProvider
-├── hooks/                    # usePiano, useAudioEngine, useKeyboardInput, useKeyboardLabels, useMetronome, useRecorder, useLooper
+│   ├── piano/                # Piano (pointer input, toolbar), PianoKey, OctaveControls, KeyboardMinimap, PedalUnit
+│   ├── playback/             # PlaybackBar (transport), NotePreview (mini piano roll)
+│   ├── transcription/        # AudioPanel, PianoRoll (canvas editor), NoteInspector
+│   ├── ui/                   # Design-system primitives: Knob, SegmentedControl, ChipGroup, Stepper, RadioPads, PadButton, Led, Field
+│   └── layout/               # AppHeader, MotionProvider
+├── hooks/                    # usePiano, useAudioEngine, useKeyboardInput, useKeyboardLabels, useMetronome, useRecorder, useSequencePlayer, useTranscription
 ├── lib/
-│   ├── music/                # notes, keyboard-map, tuning, sequence (melody format), riffs (song library), looper
-│   ├── audio/                # audio-engine, synth-voice, voices, dynamics, effects, metronome
+│   ├── music/                # notes, keyboard-map, tuning, sequence (melody format), note-events, songs + song-library, midi-file
+│   ├── audio/                # audio-engine, synth-voice, voices, dynamics, effects, metronome, sequence-player
+│   ├── transcription/        # audio-file, decode, notes-from-frames, run-model, worker, transcriber, editor, notes-file
 │   ├── note-tracker.ts       # Held/ringing notes + sustain/sostenuto rules
+│   ├── pointer-tracker.ts    # Which key each finger is on
+│   ├── voicing.ts            # How a pitch sounds with the current settings
 │   ├── settings.ts           # Defaults + validation
 │   ├── constants.ts          # Every tunable number
 │   └── dom.ts                # isTypingTarget
@@ -124,14 +136,16 @@ flowchart LR
     R[useRecorder] -- capture --> P
     P -- performer: noteOn / noteOff / setPedal --> R
     P --> KI[useKeyboardInput]
-    L[useLooper] -- noteOn / noteOff --> P
-    AE -- start --> L
+    AE -- scheduleNote --> SP[useSequencePlayer]
+    P -- settingsRef --> SP
+    T[useTranscription] -- load / update --> SP
 ```
 
 - `useAudioEngine` owns the single `AudioEngine`; piano and metronome share it
 - `usePiano` reports every note/pedal action through `onPerformanceAction`; the recorder captures them while recording
 - On playback, the recorder drives the piano through the same `noteOn`/`noteOff`/`setPedal` calls a user would trigger, so keys light up during playback
-- The looper (Notes page) does the same with riffs, booking each note on a fixed timeline so the loop never drifts ([ADR 0012](./decisions/0012-loop-riffs-through-the-piano.md))
+- Songs and transcriptions don't press keys: `useSequencePlayer` books them **on the audio clock** through `AudioEngine.scheduleNote`, voiced by the same `voiceNote()` as `noteOn`, and lights keys from what's sounding ([ADR 0013](./decisions/0013-play-sequences-on-the-audio-clock.md))
+- `useTranscription` runs Audio to Piano and holds the note editor; every edit is handed to the player, which carries on from the same place
 
 ## 7. Data flow: a key press becomes sound
 
@@ -168,7 +182,44 @@ sequenceDiagram
     end
 ```
 
-Mouse, touch and recorder playback call the same `noteOn`/`noteOff`. **There is one code path for starting a note**, whatever the input.
+Mouse, touch and recorder playback call the same `noteOn`/`noteOff`. Songs and transcriptions are booked ahead instead, but voiced by the same `voiceNote()`, so **every note sounds the same whoever plays it**.
+
+### Playing a song or transcription
+
+```mermaid
+sequenceDiagram
+    participant UI as Notes / Audio page
+    participant H as useSequencePlayer
+    participant SP as SequencePlayer
+    participant E as AudioEngine
+    participant K as Keys
+
+    UI->>H: load(source, notes, duration) · play()
+    H->>SP: play(): anchor song time 0 at now + 50 ms
+    loop every 25 ms
+        SP->>SP: notes starting in the next 200 ms?
+        SP->>E: scheduleNote(voiceNote(midi, settings), start, end)
+    end
+    loop every animation frame
+        H->>SP: soundingNotes()
+        H->>K: light the keys that changed
+    end
+    UI->>H: pause / seek / speed
+    H->>SP: cancel booked notes, move the anchor
+```
+
+### Transcribing a recording
+
+```
+ File ─► checkAudioFile (type, size, can this browser decode it?)
+      ─► readDuration (header only: reject > 10 min before decoding)
+      ─► decodeForAnalysis (OfflineAudioContext at 22 050 Hz → mono)
+      ─► Web Worker: WebGL or CPU ─► Basic Pitch model, window by window (onsets, frames)
+                                ─► decode notes in 30 s chunks ─► overtone cleanup ─► piano notes
+      ─► sanitizeNoteEvents ─► editor (undo) ─► SequencePlayer
+```
+
+Details: [ADR 0014](./decisions/0014-transcribe-audio-in-the-browser.md).
 
 ## 8. Where state lives
 
@@ -181,8 +232,14 @@ Mouse, touch and recorder playback call the same `noteOn`/`noteOff`. **There is 
 | Audio voices | `AudioEngine` (private maps) | Audio objects aren't UI state |
 | Metronome tempo, beat | `useMetronome` | Drives the panel and LCD beat lights |
 | Recording events | `useRecorder`: ref | Large, never rendered directly |
-| Selected riff, speed, playing | `useLooper` | Drives the Notes page and its tab LED |
-| Booked loop timers, keys the loop holds | `Looper` instance (private) | Timing rules, testable without React |
+| Transport: state, source, duration, speed, loop | `useSequencePlayer` | Drives the transport bars, LCD and tab LEDs |
+| Playhead position | `SequencePlayer` (read each frame, not state) | Only the components that draw it re-render |
+| Booked notes, anchor | `SequencePlayer` instance (private) | Timing rules, testable with a fake clock |
+| Keys sounding from playback | `useSequencePlayer`: state, set only when it changes | Lights the keys |
+| Transcription status, progress, notes, undo history | `useTranscription` (in `PianoApp`) | Survives switching tabs |
+| Fingers on keys | `PointerTracker` instance in `Piano` | Pure rules, testable without a DOM |
+| Song search, filters | `NotesPanel` | Local UI state |
+| Favorite songs | `lib/favorites.ts` store (localStorage) via `useSyncExternalStore` | Hydration-safe, shared across tabs |
 
 ### Note lifecycle
 
@@ -236,7 +293,9 @@ Two kinds of `window` listeners: **notes** (`useKeyboardInput`) and **controls**
 | Auto-repeat | Ignored | One press, one note |
 | Shift held (soft pedal) | Notes still play | Matched by physical `event.code`, not the character |
 | Octave changed mid-press | Key-up stops the right note | Each key remembers the note it started |
-| Window loses focus | Keys and keyboard pedals released | The browser never sends their keyup |
+| Window loses focus, or the tab is hidden | Keys, fingers and keyboard pedals released | The browser never sends their keyup |
+| A focused slider (tempo, seek) | ← → ↑ ↓ go to the slider | Native range inputs don't call `preventDefault()` |
+| Touch on the keys | Plays (never scrolls); slide for glissando; several fingers for chords | `touch-action: none` on the keys only ([ADR 0015](./decisions/0015-docked-keyboard-on-phones.md)) |
 | Space on a keyboard-focused button | The button gets it | Standard accessibility |
 
 ## 11. Interface design system
@@ -275,6 +334,7 @@ The UI is designed as **the instrument seen from the bench** ([ADR 0011](./decis
 - **Synthesized, not sampled.** Expressive, but not a concert-grand recording ([ADR 0001](./decisions/0001-synthesize-sound-instead-of-samples.md))
 - **Computer keys have no velocity.** Touch curves still set their loudness; mouse/touch use press position
 - **The sostenuto pedal has no key** (Shift and Space are taken by soft and sustain); it's on screen
-- **Phones scroll the keyboard** rather than shrinking 37 keys below a tappable size ([ADR 0010](./decisions/0010-two-manual-37-key-layout.md))
-- **Settings aren't saved** between visits yet ([roadmap](./roadmap.md))
-- **Loops run on JavaScript timers**, not the audio clock, so a note can be a few ms late when the page is busy, and a loop restarts when you return to a background tab ([ADR 0012](./decisions/0012-loop-riffs-through-the-piano.md))
+- **Phones show about an octave at a time**, moved with the minimap, rather than shrinking 37 keys below a tappable size ([ADR 0015](./decisions/0015-docked-keyboard-on-phones.md))
+- **Settings aren't saved** between visits yet ([roadmap](./roadmap.md)); favorite songs are
+- **Playback bypasses the pedals and the recorder**: songs and transcriptions are booked on the audio clock, so the sustain pedal doesn't hold them and recording doesn't capture them ([ADR 0013](./decisions/0013-play-sequences-on-the-audio-clock.md))
+- **Transcription is an estimate**, and slow without a GPU (about 2× real time); long recordings use a lot of memory on phones ([ADR 0014](./decisions/0014-transcribe-audio-in-the-browser.md))

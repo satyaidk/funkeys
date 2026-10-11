@@ -52,6 +52,8 @@ export default function KeyGuide({ notes }: KeyGuideProps) {
         <dd>Hold for sustain</dd>
         <dt><Keys keys="Shift" /></dt>
         <dd>Hold for soft pedal</dd>
+        <dt><Keys keys="\" /></dt>
+        <dd>Hold for sostenuto</dd>
       </dl>
     </section>
   );

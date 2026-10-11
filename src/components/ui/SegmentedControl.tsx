@@ -4,6 +4,9 @@
  * Built as an accessible radio group: one Tab stop for the whole group,
  * arrow keys move the selection (the "roving tabindex" pattern), and the
  * highlight slides between options with a shared layout animation.
+ *
+ * On a screen too narrow for every option in one row, the options wrap
+ * onto a second row instead of pushing the page sideways.
  */
 
 'use client';
@@ -62,7 +65,7 @@ export default function SegmentedControl<T extends string>({
       aria-label={label}
       aria-disabled={disabled || undefined}
       onKeyDown={handleKeyDown}
-      className={`flex rounded-lg bg-panel-sunk p-1 shadow-[inset_0_1px_3px_rgb(0_0_0/0.65)] ${
+      className={`flex max-w-full flex-wrap rounded-lg bg-panel-sunk p-1 shadow-[inset_0_1px_3px_rgb(0_0_0/0.65)] ${
         disabled ? 'pointer-events-none opacity-40' : ''
       } ${className}`}
     >
@@ -81,7 +84,7 @@ export default function SegmentedControl<T extends string>({
             disabled={disabled}
             onMouseDown={preventMouseFocus}
             onClick={() => onChange(option.value)}
-            className={`relative flex-1 whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors ${
+            className={`relative flex-1 whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm transition-colors sm:px-3 ${
               checked ? 'text-ink' : 'text-ink-muted hover:text-ink'
             }`}
           >
@@ -92,7 +95,7 @@ export default function SegmentedControl<T extends string>({
                 transition={{ type: 'spring', stiffness: 520, damping: 40 }}
               />
             )}
-            <span className="relative flex items-center justify-center gap-2">
+            <span className="relative flex items-center justify-center gap-1.5 sm:gap-2">
               <Led on={checked} />
               {option.label}
             </span>

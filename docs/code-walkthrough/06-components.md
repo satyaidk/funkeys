@@ -94,9 +94,8 @@ One key, ivory or ebony.
 | Held (`isActive`) | Moves down, lit in the note's color, glowing |
 | Ringing (`isSustained`) | Key up, soft glow and colored lip |
 
-- **Velocity from position:** `velocityFromPosition((clientY - rect.top) / rect.height)`
-- **`pointerDownRef`**: only *this pointer's* press can be released by `pointerleave` (regression test: hovering past a keyboard-held key mustn't stop it)
-- **`touch-pan-x`** (`touch-action: pan-x`): on phones a sideways swipe scrolls the keyboard; the browser then fires `pointercancel`, which releases the note
+- **No input handlers of its own:** the keyboard (`Piano`) handles every pointer and finds the key under it through `data-note-id` (see [Part 8](./08-playback-and-transcription.md#touch-input-libpointer-trackerts-pianopianotsx-pianokeyboardminimaptsx))
+- **Lit by playback too:** `isActive` is true for keys you hold *and* keys a song or transcription is sounding
 - **Labels:** the computer key always; the note name on every C (like stickers on a practice keyboard) and on any lit key
 - **Power-on sweep:** a CSS animation with `animationDelay: 300 + index × 24 ms`, a single rainbow pass on load, disabled for reduced motion
 - `memo` + stable callbacks: one key press re-renders one key
@@ -117,14 +116,18 @@ notes.forEach((note, index) => {
 
 Black keys sit at `left: calc(var(--white-key-width) × whiteKeysBefore)` and shift left by half their width.
 
-**Responsive sizing** with CSS variables ([ADR 0004](../decisions/0004-css-variables-for-responsive-keys.md), [ADR 0010](../decisions/0010-two-manual-37-key-layout.md)):
+**Responsive sizing** with CSS variables ([ADR 0004](../decisions/0004-css-variables-for-responsive-keys.md), [ADR 0010](../decisions/0010-two-manual-37-key-layout.md), [ADR 0015](../decisions/0015-docked-keyboard-on-phones.md)):
 
 ```ts
-'--white-key-width': `clamp(34px, calc((min(100vw, 1480px) - 9rem) / 22), 58px)`,
-'--white-key-height': `clamp(168px, calc(var(--white-key-width) * 3.85), 224px)`,
+'--white-key-width': `clamp(40px, calc((min(100vw, 1480px) - 9rem) / 22), 58px)`,
+'--white-key-height': `clamp(120px, min(calc(var(--white-key-width) * 4.2), 40dvh), 224px)`,
 ```
 
-Below 34px per key the keyboard **scrolls** instead of shrinking, and starts scrolled to the middle (`scrollLeft = (scrollWidth − clientWidth) / 2`).
+Below 40 px per key the keys keep their size and the keyboard becomes a window onto all 37, moved with the **minimap** in the toolbar; it starts with the board's middle C at the left. Keys are at most 40% of the screen height, for landscape phones.
+
+**Pointer input** lives here, on the keys' container: pointer capture, `elementFromPoint` on each move (glissando), `PointerTracker` per finger (chords), release on up/cancel/blur/hidden tab, `touch-action: none` on the keys only. A screen reader's "click" (`event.detail === 0`) plays a short note.
+
+**Toolbar:** octave −/+ with the range (`OctaveControls`), the minimap when the keys don't fit, and whatever the app passes (All notes off).
 
 **Split mode:** zone labels on the fallboard corners ("◂ Electric piano", "Concert grand ▸") and an amber marker dropping from the felt at the first right-hand key.
 
@@ -156,9 +159,9 @@ Round record/play/stop pads. Play is disabled until there's a take; the status l
 
 WAI-ARIA tabs (`tablist`/`tab`/`tabpanel`, `aria-controls`, arrow keys). Each tab has an **LED that lights when its page holds a non-default setting**. The amber underline slides with `layoutId`, and pages cross-fade with `AnimatePresence mode="wait"`. On wide screens the page area has a **fixed minimum height** so the keyboard never jumps between pages.
 
-## `console/ConsolePanel.tsx`
+## `console/ConsolePanel.tsx` and `console/Workspace.tsx`
 
-The **container**: receives the `piano`, `metronome`, `recorder` and `looper` controllers and passes each panel only what it needs. Computes derived values: `soundingNotes`, `tuningChanged` and `soundChanged` (for the tab LEDs).
+`ConsolePanel` is now just the top of the cabinet (volume, LCD, recorder); on phones the LCD comes first. The function pages moved below the keyboard into **`Workspace`**, the container that hands each page only what it needs and computes the tab LEDs (`tuningChanged`, `soundChanged`, a song or transcription playing). The LCD's "now playing" line includes notes sounding from playback.
 
 ## `console/panels/*`
 
@@ -169,7 +172,8 @@ The **container**: receives the `piano`, `metronome`, `recorder` and `looper` co
 | `SoundPanel` | Reverb room + depth knob, brilliance, touch curve |
 | `TuningPanel` | Transpose stepper, master tuning stepper (+ reset), temperament pads, temperament key stepper |
 | `MetronomePanel` | Start/stop pad + beat lights, tempo stepper + slider + marking, time signature, tap, click volume |
-| `NotesPanel` | Play loop / Stop loop pad with the tempo, speed (50–125%), song pads (`RadioPads`); the Notes tab LED lights while a loop plays |
+| `NotesPanel` | The song library: search, category chips (`ChipGroup`), level, favorites, curated picks with Shuffle, song cards; the selected song with a mini piano roll (`NotePreview`) and the transport (`PlaybackBar`) |
+| `transcription/AudioPanel` | Audio to Piano: drop zone with limits and privacy note, staged progress with Cancel, errors, then the result with `PlaybackBar`, `PianoRoll`, `NoteInspector`, undo/redo and exports |
 
 Panels are **presentational**: props in, callbacks out.
 
@@ -182,11 +186,15 @@ const audio = useAudioEngine();
 const recorder = useRecorder();
 const piano = usePiano({ audio, onPerformanceAction: recorder.capture });
 const metronome = useMetronome(audio);
-const looper = useLooper({ audio, performer: piano, octaveShift: piano.settings.octaveShift });
-const labels = useKeyboardLabels();
+const player = useSequencePlayer({ audio, settingsRef: piano.settingsRef, onStart: fitKeyboard });
+const transcription = useTranscription(player);
 ```
 
-Then lays out the **cabinet**: `ConsolePanel` on top, `Piano` below, `PedalUnit` under the cabinet, `KeyGuide` at the bottom.
+Then lays out the page: `AppHeader`, `ConsolePanel`, the keyboard (pinned to the top of tall screens, **docked to the bottom on phones** with the `pin`/`dock` variants), `PedalUnit`, `Workspace`, `KeyGuide`, and the `ShortcutsDialog`. It measures the keyboard into `--keyboard-height` for `scroll-padding`.
+
+## `layout/AppHeader.tsx` and `ShortcutsDialog.tsx`
+
+The header links open the Notes and Audio to Piano pages (`FunctionTabs` can now be controlled from outside). The shortcuts dialog is a native `<dialog>` opened with `showModal()`: focus is trapped, Esc closes it, and key presses inside it don't reach the piano.
 
 ## `KeyGuide.tsx` and `layout/MotionProvider.tsx`
 

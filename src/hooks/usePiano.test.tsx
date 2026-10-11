@@ -134,6 +134,18 @@ describe('usePiano', () => {
       expect(fundamental).toBeCloseTo(440 * 2 ** (2 / 12), 0);
     });
 
+    // Regression: ← on the focused tempo slider also used to shift the octave
+    it('leaves the arrows to a focused slider', () => {
+      const { result } = renderPiano();
+      const slider = document.body.appendChild(document.createElement('input'));
+      slider.type = 'range';
+      fireEvent.keyDown(slider, { code: 'ArrowRight' });
+      fireEvent.keyDown(slider, { code: 'ArrowUp' });
+      expect(result.current.settings.octaveShift).toBe(0);
+      expect(result.current.settings.transpose).toBe(0);
+      slider.remove();
+    });
+
     it('leaves Ctrl+arrow combinations to the browser', () => {
       const { result } = renderPiano();
       press('ArrowRight', { ctrlKey: true });
@@ -195,6 +207,30 @@ describe('usePiano', () => {
       expect(result.current.pedals.soft).toBe(true);
       release('ShiftLeft');
       expect(result.current.pedals.soft).toBe(false);
+    });
+
+    it('holds the sostenuto pedal while Backslash is held', () => {
+      const { result } = renderPiano();
+      press('KeyZ'); // C3 held
+      press('Backslash');
+      expect(result.current.pedals.sostenuto).toBe(true);
+      release('KeyZ');
+      expect(result.current.sustainedNoteIds).toEqual(new Set(['C3']));
+      release('Backslash');
+      expect(result.current.pedals.sostenuto).toBe(false);
+      expect(result.current.sustainedNoteIds.size).toBe(0);
+    });
+
+    it('releases notes and keyboard pedals when the tab is hidden', () => {
+      const { result } = renderPiano();
+      press('Space');
+      press('KeyZ');
+      vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+      fireEvent(document, new Event('visibilitychange'));
+
+      expect(result.current.activeNoteIds.size).toBe(0);
+      expect(result.current.pedals.sustain).toBe(false);
+      partialOscillators(latestAudioContext()).forEach((o) => expect(o.stopTime).not.toBeNull());
     });
 
     it('lifts keyboard pedals when the window loses focus', () => {

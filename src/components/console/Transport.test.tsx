@@ -47,6 +47,7 @@ describe('FunctionTabs', () => {
     tuning: <p>Tuning page</p>,
     metronome: <p>Metronome page</p>,
     notes: <p>Notes page</p>,
+    audio: <p>Audio page</p>,
   };
 
   it('shows the first page and selects tabs with the arrow keys', async () => {
@@ -55,11 +56,21 @@ describe('FunctionTabs', () => {
 
     // Left from the first tab wraps round to the last
     fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowLeft' });
-    expect(screen.getByRole('tab', { name: 'Notes' })).toHaveAttribute('aria-selected', 'true');
-    expect(await screen.findByText('Notes page')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Audio to Piano' })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByText('Audio page')).toBeInTheDocument();
 
     fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowLeft' });
-    expect(screen.getByRole('tab', { name: 'Metronome' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Notes' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('can be controlled from outside (the header links)', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(<FunctionTabs panels={panels} indicators={{}} value="notes" onChange={onChange} />);
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('Notes page');
+    fireEvent.click(screen.getByRole('tab', { name: 'Tuning' }));
+    expect(onChange).toHaveBeenCalledWith('tuning');
+    rerender(<FunctionTabs panels={panels} indicators={{}} value="audio" onChange={onChange} />);
+    expect(screen.getByRole('tab', { name: 'Audio to Piano' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('connects each tab to its panel', () => {

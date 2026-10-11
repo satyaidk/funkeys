@@ -6,7 +6,8 @@
  * - **Sustain (damper)**: keeps every released note ringing
  *
  * Clicking a pedal latches it (a mouse can't hold a pedal and play keys at
- * the same time); the keyboard shortcuts hold it only while pressed. Either
+ * the same time); the keyboard shortcuts (Shift, \, Space) hold it only
+ * while pressed. Either
  * way, the pedal moves down so you can see its state.
  */
 
@@ -23,7 +24,7 @@ interface PedalUnitProps {
 
 const PEDALS: ReadonlyArray<{ id: PedalName; name: string; shortcut: string | null; description: string }> = [
   { id: 'soft', name: 'Soft', shortcut: 'Shift', description: 'Quieter, darker tone' },
-  { id: 'sostenuto', name: 'Sostenuto', shortcut: null, description: 'Holds the notes you are holding' },
+  { id: 'sostenuto', name: 'Sostenuto', shortcut: '\\', description: 'Holds the notes you are holding' },
   { id: 'sustain', name: 'Sustain', shortcut: 'Space', description: 'Notes ring after you let go' },
 ];
 
@@ -31,11 +32,11 @@ export default function PedalUnit({ pedals, onToggle }: PedalUnitProps) {
   return (
     <div className="flex flex-col items-center">
       {/* Lyre: the wooden post that carries the pedals */}
-      <div aria-hidden="true" className="h-5 w-16 bg-linear-to-b from-[#0d0b10] to-[#1a171e]" />
+      <div aria-hidden="true" className="h-5 w-16 bg-linear-to-b from-[#0d0b10] to-[#1a171e] dock:hidden" />
       <div
         role="group"
         aria-label="Pedals"
-        className="flex items-start gap-5 rounded-2xl bg-linear-to-b from-[#1a171e] to-[#110f14] px-6 pb-4 pt-5 shadow-[0_18px_40px_-16px_rgb(0_0_0/0.8),inset_0_1px_0_rgb(255_255_255/0.05)] sm:gap-9 sm:px-10"
+        className="flex items-start gap-3 rounded-2xl bg-linear-to-b from-[#1a171e] to-[#110f14] px-4 pb-3 pt-4 shadow-[0_18px_40px_-16px_rgb(0_0_0/0.8),inset_0_1px_0_rgb(255_255_255/0.05)] dock:mt-5 sm:gap-9 sm:px-10 sm:pb-4 sm:pt-5"
       >
         {PEDALS.map((pedal) => {
           const down = pedals[pedal.id];
@@ -48,9 +49,9 @@ export default function PedalUnit({ pedals, onToggle }: PedalUnitProps) {
               title={pedal.description}
               onMouseDown={preventMouseFocus}
               onClick={() => onToggle(pedal.id)}
-              className="group flex w-20 flex-col items-center gap-2.5 rounded-lg pt-1 sm:w-24"
+              className="group flex w-[4.5rem] flex-col items-center gap-2 rounded-lg pt-1 sm:w-24 sm:gap-2.5"
             >
-              <span className="relative flex h-[4.5rem] w-full items-start justify-center [perspective:260px]">
+              <span className="relative flex h-14 w-full items-start justify-center [perspective:260px] sm:h-[4.5rem]">
                 {/* Shadow on the floor that tightens as the pedal goes down */}
                 <motion.span
                   aria-hidden="true"
@@ -60,7 +61,7 @@ export default function PedalUnit({ pedals, onToggle }: PedalUnitProps) {
                 {/* Brass tongue: narrow where it leaves the lyre, rounded at the toe */}
                 <motion.span
                   aria-hidden="true"
-                  className="relative block h-[3.75rem] w-9 origin-top rounded-t-[6px] rounded-b-[18px]"
+                  className="relative block h-11 w-8 origin-top rounded-t-[6px] rounded-b-[16px] sm:h-[3.75rem] sm:w-9 sm:rounded-b-[18px]"
                   style={{
                     background: down
                       ? 'linear-gradient(90deg, #6f5426 0%, #b18a45 50%, #6f5426 100%)'

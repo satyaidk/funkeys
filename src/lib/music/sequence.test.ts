@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSequence } from './sequence';
+import { parseParts, parseSequence } from './sequence';
 
 describe('parseSequence', () => {
   it('reads pitches and note values, timed in quarter-note beats', () => {
@@ -53,5 +53,43 @@ describe('parseSequence', () => {
 
   it('rejects an empty melody', () => {
     expect(() => parseSequence('  | ')).toThrow();
+  });
+});
+
+describe('triplets', () => {
+  it('makes a triplet two-thirds as long, three to a beat', () => {
+    const { notes, beats } = parseSequence('C4/8t E4/8t G4/8t C5/4');
+    expect(notes[0].length).toBeCloseTo(1 / 3);
+    expect(notes[3].start).toBe(1); // exactly 1, not 0.9999999999999999
+    expect(beats).toBe(2);
+  });
+
+  it('adds up twelve triplet eighths to exactly one 4/4 bar', () => {
+    expect(parseSequence(Array(12).fill('G#3/8t').join(' ')).beats).toBe(4);
+  });
+});
+
+describe('parseParts', () => {
+  it('plays both hands together, merged in time order', () => {
+    const { notes, beats } = parseParts(['E5/4 D5/4 C5/2', 'C3/1']);
+    expect(notes.map((n) => [n.midi, n.start, n.length])).toEqual([
+      [48, 0, 4], // left hand C3, held for the whole bar
+      [76, 0, 1],
+      [74, 1, 1],
+      [72, 2, 2],
+    ]);
+    expect(beats).toBe(4);
+  });
+
+  it('lasts as long as the longest part', () => {
+    expect(parseParts(['C4/4', 'C3/1 C3/1']).beats).toBe(8);
+  });
+
+  it('says which part has a typo', () => {
+    expect(() => parseParts(['C4/4', 'C3/3'])).toThrow('Part 2: Can\'t read "C3/3"');
+  });
+
+  it('needs at least one part', () => {
+    expect(() => parseParts([])).toThrow();
   });
 });

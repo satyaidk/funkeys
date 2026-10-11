@@ -22,7 +22,7 @@
  * - **Stereo position**: low notes sit left, high notes right
  */
 
-import { SOFT_PEDAL, STEREO_SPREAD } from '../constants';
+import { QUICK_RELEASE, SOFT_PEDAL, STEREO_SPREAD } from '../constants';
 import { velocityToGain } from './dynamics';
 import { VoiceDefinition } from './voices';
 
@@ -47,11 +47,17 @@ export interface SynthVoice {
   readonly startTime: number;
   readonly released: boolean;
   /**
-   * Fade out and stop.
-   * @param time     - Audio-clock time to start the fade
+   * Fade out and stop. Only the first call counts.
+   * @param time     - Audio-clock time to start the fade (may be in the future)
    * @param fadeTime - Seconds to reach silence (defaults to the voice's release)
    */
   release(time: number, fadeTime?: number): void;
+  /**
+   * Cut the voice short with a quick fade, even if a release is already
+   * booked for later (playback paused or stopped). A voice booked to start
+   * in the future never sounds at all.
+   */
+  cancel(time: number): void;
   /** Called once every node has stopped and been disconnected */
   onEnded: (() => void) | null;
 }
@@ -199,6 +205,8 @@ export function createVoice(
   });
 
   // ── Hammer / pluck noise ──────────────────────────────────────────────
+  // Not routed through the envelope, so `cancel` stops it separately
+  let noiseSource: AudioBufferSourceNode | null = null;
   if (def.attackNoise && params.noiseBuffer) {
     const { gain, frequency, duration } = def.attackNoise;
     const noise = context.createBufferSource();
@@ -218,6 +226,7 @@ export function createVoice(
     noise.start(t0);
     noise.stop(t0 + duration + 0.02);
     nodes.push(noise);
+    noiseSource = noise;
   }
 
   /** Envelope level reached at `time`, computed to match the scheduled automation */
@@ -231,6 +240,33 @@ export function createVoice(
   };
 
   let released = false;
+  let cancelled = false;
+  /** The fade-out booked so far, so `levelAt` knows the level during a release */
+  let fade: { at: number; seconds: number; from: number } | null = null;
+
+  /** Level at `time`, including a release fade that has been booked */
+  const levelAt = (time: number): number => {
+    if (fade && time >= fade.at) {
+      const progress = (time - fade.at) / fade.seconds;
+      return progress >= 1 ? 0 : fade.from * (1 - progress);
+    }
+    return envelopeLevelAt(time);
+  };
+
+  const fadeOut = (time: number, seconds: number) => {
+    const from = levelAt(time);
+    fade = { at: time, seconds, from };
+    // Replace whatever was booked from `time` on (a later release, the decay)
+    // with a straight fade from the level the note has reached
+    envelope.gain.cancelScheduledValues(time);
+    envelope.gain.setValueAtTime(from, time);
+    envelope.gain.linearRampToValueAtTime(0, time + seconds);
+    // A later stop() replaces an earlier one, so cancelling can bring the end forward
+    const stopAt = time + seconds + 0.05;
+    sources.forEach((source) => {
+      try { source.stop(stopAt); } catch { /* already stopped */ }
+    });
+  };
 
   const voice: SynthVoice = {
     startTime: t0,
@@ -240,13 +276,14 @@ export function createVoice(
     release(time: number, fadeTime: number = def.envelope.release) {
       if (released) return;
       released = true;
-      envelope.gain.cancelScheduledValues(time);
-      envelope.gain.setValueAtTime(envelopeLevelAt(time), time);
-      envelope.gain.linearRampToValueAtTime(0, time + fadeTime);
-      const stopAt = time + fadeTime + 0.05;
-      sources.forEach((source) => {
-        try { source.stop(stopAt); } catch { /* already stopped */ }
-      });
+      fadeOut(time, fadeTime);
+    },
+    cancel(time: number) {
+      if (cancelled) return;
+      cancelled = true;
+      released = true;
+      fadeOut(time, QUICK_RELEASE);
+      try { noiseSource?.stop(time); } catch { /* already stopped */ }
     },
     onEnded: null,
   };

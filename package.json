@@ -10,15 +10,21 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "validate": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "validate": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "sync:model": "node scripts/sync-basic-pitch-model.mjs",
+    "fixture:piano": "node scripts/make-piano-fixture.mjs",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@spotify/basic-pitch": "^1.0.1",
+    "@tensorflow/tfjs": "^3.21.0",
     "framer-motion": "^14.0.0",
     "next": "16.3.8",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
