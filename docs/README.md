@@ -1,4 +1,4 @@
-# Keyboard Piano: Documentation
+# FunKeys: Documentation
 
 How the project works, from the big picture down to every file, and the concepts behind it.
 
@@ -12,9 +12,9 @@ How the project works, from the big picture down to every file, and the concepts
 | 4 | [Music theory for programmers](./concepts/music-theory.md) | Notes, MIDI, frequencies, the 37-key layout, temperaments |
 | 5 | [Web Audio API](./concepts/web-audio.md) | Synthesis, envelopes, FM, reverb, scheduling |
 | 6 | [React & Next.js patterns](./concepts/react-patterns.md) | The hooks and UI patterns used everywhere |
-| 7 | [Code walkthrough](./code-walkthrough/) (parts 1 → 7) | Every file and the reasoning behind it |
+| 7 | [Code walkthrough](./code-walkthrough/) (parts 1 → 8) | Every file and the reasoning behind it |
 | 8 | [Architecture Decision Records](./decisions/) | *Why* key choices were made |
-| 9 | [Testing](./testing.md) | How the 257 tests work, and how to write more |
+| 9 | [Testing](./testing.md) | How the 448 unit tests and the Playwright suite work, and how to write more |
 | 10 | [Development guide](./development.md) | Git workflow, conventions, adding features, deploying |
 | 11 | [Roadmap](./roadmap.md) | Features to build next |
 | 12 | [Portfolio & interview guide](./portfolio-guide.md) | Resume bullets, interview stories, demo script |
@@ -38,8 +38,9 @@ docs/
 │   ├── 04-core-state.md
 │   ├── 05-hooks.md
 │   ├── 06-components.md
-│   └── 07-app-and-config.md
-├── decisions/                   ← 12 Architecture Decision Records
+│   ├── 07-app-and-config.md
+│   └── 08-playback-and-transcription.md
+├── decisions/                   ← 15 Architecture Decision Records
 ├── testing.md
 ├── development.md
 ├── roadmap.md
@@ -56,7 +57,9 @@ docs/
 | How the pedals work | [Piano functions](./concepts/piano-functions.md#the-three-pedals), [note-tracker](./code-walkthrough/04-core-state.md#note-trackerts) |
 | How temperaments are calculated | [Music theory §8](./concepts/music-theory.md#8-temperaments) |
 | Why the metronome doesn't drift | [ADR 0007](./decisions/0007-lookahead-metronome-scheduler.md) |
-| How the Notes page loops songs | [Music walkthrough: looper](./code-walkthrough/02-music.md#looperts), [ADR 0012](./decisions/0012-loop-riffs-through-the-piano.md) |
+| How songs and transcriptions play in time | [Part 8: sequence player](./code-walkthrough/08-playback-and-transcription.md#libaudiosequence-playerts), [ADR 0013](./decisions/0013-play-sequences-on-the-audio-clock.md) |
+| How Audio to Piano works | [Part 8: transcription](./code-walkthrough/08-playback-and-transcription.md#libtranscription-and-hooksusetranscriptionts), [ADR 0014](./decisions/0014-transcribe-audio-in-the-browser.md) |
+| How touch, chords and glissandos work on phones | [Part 8: touch input](./code-walkthrough/08-playback-and-transcription.md#touch-input-libpointer-trackerts-pianopianotsx-pianokeyboardminimaptsx), [ADR 0015](./decisions/0015-docked-keyboard-on-phones.md) |
 | How the UI controls are built | [Components: ui/](./code-walkthrough/06-components.md#ui-the-design-system-primitives) |
 | The visual design decisions | [ADR 0011](./decisions/0011-instrument-as-interface.md) |
 | Where to put new code | [Development §4](./development.md#where-new-code-goes) |

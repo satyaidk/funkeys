@@ -1,6 +1,6 @@
 # ADR 0010: A 37-key two-manual layout, scrolling on phones
 
-- **Status:** Accepted (amends [ADR 0004](./0004-css-variables-for-responsive-keys.md))
+- **Status:** Accepted (amends [ADR 0004](./0004-css-variables-for-responsive-keys.md)); the phone behaviour is amended by [ADR 0015](./0015-docked-keyboard-on-phones.md)
 - **Area:** Input and layout (`lib/music/keyboard-map.ts`, `components/piano/Piano.tsx`)
 
 ## Context

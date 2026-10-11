@@ -25,9 +25,12 @@ ADRs aren't rewritten after acceptance. When a decision changes, a **new ADR sup
 | [0007](./0007-lookahead-metronome-scheduler.md) | Schedule metronome clicks ahead on the audio clock | Accepted |
 | [0008](./0008-pedal-logic-as-a-pure-state-machine.md) | Model pedal logic as a pure state machine | Accepted |
 | [0009](./0009-data-driven-voice-recipes.md) | Describe instrument voices as data-driven recipes | Accepted |
-| [0010](./0010-two-manual-37-key-layout.md) | A 37-key two-manual layout, scrolling on phones | Accepted |
+| [0010](./0010-two-manual-37-key-layout.md) | A 37-key two-manual layout, scrolling on phones | Accepted, amended by 0015 |
 | [0011](./0011-instrument-as-interface.md) | Design the interface as the instrument itself | Accepted |
-| [0012](./0012-loop-riffs-through-the-piano.md) | Loop riffs through the piano, booked on a drift-free timeline | Accepted |
+| [0012](./0012-loop-riffs-through-the-piano.md) | Loop riffs through the piano, booked on a drift-free timeline | Superseded by 0013 |
+| [0013](./0013-play-sequences-on-the-audio-clock.md) | Play songs and transcriptions on the audio clock | Accepted |
+| [0014](./0014-transcribe-audio-in-the-browser.md) | Transcribe audio in the browser with Basic Pitch, in a Web Worker | Accepted |
+| [0015](./0015-docked-keyboard-on-phones.md) | On phones, dock the keyboard and navigate it with a minimap | Accepted |
 
 ## Writing a new ADR
 

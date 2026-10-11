@@ -1,6 +1,6 @@
 # ADR 0012: Loop riffs through the piano, booked on a drift-free timeline
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0013](./0013-play-sequences-on-the-audio-clock.md) (the looper was replaced by an audio-clock sequence player)
 - **Area:** Notes page (`lib/music/sequence.ts`, `riffs.ts`, `looper.ts`, `hooks/useLooper.ts`)
 
 ## Context

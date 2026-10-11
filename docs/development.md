@@ -9,8 +9,8 @@ How to set up, work on, and ship changes, following the workflow most profession
 **Requirements:** Node.js 22.12+ (24 recommended), npm, Git.
 
 ```bash
-git clone https://github.com/satyaidk/expert-eureka.git
-cd expert-eureka
+git clone https://github.com/satyaidk/funkeys.git
+cd funkeys
 npm install
 npm run dev          # → http://localhost:3000
 ```

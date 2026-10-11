@@ -1,5 +1,5 @@
 /**
- * @fileoverview Application-wide constants for the Keyboard Piano.
+ * @fileoverview Application-wide constants for FunKeys.
  *
  * All magic numbers and configuration values are centralized here.
  * This makes the app easy to tune and prevents scattered literals.

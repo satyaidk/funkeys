@@ -1,5 +1,5 @@
 /**
- * @fileoverview Domain types shared across the Keyboard Piano.
+ * @fileoverview Domain types shared across FunKeys.
  *
  * Shapes used by more than one layer (lib, hooks, components) live here.
  * Props that belong to a single component are declared next to that

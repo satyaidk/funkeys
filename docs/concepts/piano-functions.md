@@ -1,6 +1,6 @@
 # Digital piano functions
 
-Keyboard Piano copies the functions found on real digital pianos such as the Yamaha Clavinova and P-series, the Roland FP-30X and Kawai's CA and CN models. This guide explains what each function does on a real instrument, and how this app implements it.
+FunKeys copies the functions found on real digital pianos such as the Yamaha Clavinova and P-series, the Roland FP-30X and Kawai's CA and CN models. This guide explains what each function does on a real instrument, and how this app implements it.
 
 > **Research sources:** Yamaha Clavinova owner's manuals (temperament and base-note settings), Roland FP-30X owner's manual (master tuning 415.3–466.2 Hz, touch levels), [Wikipedia: Piano pedals](https://en.wikipedia.org/wiki/Piano_pedals), [Wikipedia: Werckmeister temperament](https://en.wikipedia.org/wiki/Werckmeister_temperament), [Wikipedia: Kirnberger temperament](https://en.wikipedia.org/wiki/Kirnberger_temperament), and the [Thomann digital piano guide](https://www.thomannmusic.com/onlineexpert_page_digital_pianos_additional_functions.html).
 
@@ -22,7 +22,7 @@ Keyboard Piano copies the functions found on real digital pianos such as the Yam
 | [Temperament](#temperament) | Historical tuning systems | 6 temperaments + key | `lib/music/tuning.ts` |
 | [Metronome](#metronome) | Steady click to practice with | Tempo, time signature, tap tempo | `lib/audio/metronome.ts` |
 | [Recorder](#recorder) | Record and replay your playing | One-take performance recorder | `hooks/useRecorder.ts` |
-| [Song playback (Notes)](#song-playback-notes) | Built-in songs to listen to and practice | Famous riffs that loop, keys lighting up | `lib/music/looper.ts` |
+| [Song playback (Notes)](#song-playback-notes) | Built-in songs to listen to and practice | 27 songs played on the audio clock, keys lighting up; speed, seek, loop | `lib/audio/sequence-player.ts`, `lib/music/song-library.ts` |
 | [Polyphony](#polyphony) | Max notes at once (64–256) | 64 voices with voice stealing | `audio-engine.ts` |
 
 ---
@@ -118,7 +118,9 @@ Records your performance as **events** (which key, when, how hard, pedal moves),
 
 ## Song playback (Notes)
 
-Digital pianos ship with built-in songs, and many light up the keys or slow the song down so you can learn it (Casio's key-lighting models, Yamaha's song "lesson" functions). The **Notes** page does the same with famous riffs: pick one, press *Play loop*, and it repeats on the keyboard until you stop it. Keys light up as they play, the current voice and settings apply, and the speed control (50–125%) slows a riff down to learn it. Recording while a loop plays captures it, so you can record yourself playing along. How the timing works: [ADR 0012](../decisions/0012-loop-riffs-through-the-piano.md).
+Digital pianos ship with built-in songs, and many light up the keys or slow the song down so you can learn it (Casio's key-lighting models, Yamaha's song "lesson" functions). The **Notes** page does the same with a library of 27 songs: public-domain pieces (several with both hands), riffs by ear and practice exercises. Keys light up as they play, the current voice and settings apply, the speed control (50–125%) slows a piece down to learn it, and riffs and exercises loop until you stop them. Notes are booked on the audio clock, so timing stays exact however long a piece runs ([ADR 0013](../decisions/0013-play-sequences-on-the-audio-clock.md)).
+
+Some digital pianos and apps can also **listen** to a recording and show its notes. The **Audio to Piano** page does that with Spotify's Basic Pitch model, in the browser ([ADR 0014](../decisions/0014-transcribe-audio-in-the-browser.md)).
 
 ## Polyphony
 

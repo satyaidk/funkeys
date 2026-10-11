@@ -12,8 +12,10 @@ What's done, and ideas to build next, ordered roughly by difficulty. **Build the
 - Touch curves, reverb rooms, brilliance
 - Transpose, master tuning, 6 temperaments
 - Metronome with tap tempo; performance recorder
-- Notes page: famous riffs that loop on the keyboard, with practice speed
-- Hardware-style UI with a design system, 257 tests, CI
+- Notes library: 27 songs on the audio clock (search, categories, favorites, seek, speed, loop)
+- Audio to Piano: in-browser transcription with Basic Pitch, piano-roll editor, MIDI export and import
+- A sostenuto key (`\`), on-screen octave controls, multi-touch chords and glissando, a docked keyboard on phones
+- Hardware-style UI with a design system, 448 unit tests, Playwright end-to-end tests, CI
 
 ## 🟢 Beginner
 
@@ -22,10 +24,8 @@ Save `settings` (and metronome tempo) to `localStorage`, restore on load.
 - **Skills:** browser storage, hydration (the server has no `localStorage`; load after mount)
 - **Files:** `usePiano.ts`, `lib/settings.ts` (reuse `sanitizeSettings` to validate what you load)
 
-### 2. A sostenuto key
-Map a key (e.g. `Backslash`) to the sostenuto pedal.
-- **Skills:** keyboard events, extending tests
-- **Files:** `usePiano.ts`, `usePiano.test.tsx`, `PedalUnit.tsx` (show the shortcut)
+### 2. ~~A sostenuto key~~ ✅ Done
+`\` holds the sostenuto pedal.
 
 ### 3. Show / hide labels
 A toggle to hide key letters for ear training.
@@ -48,9 +48,9 @@ Colored bars rising above the keys as you play.
 - **Files:** new `components/piano/NoteVisualizer.tsx`
 
 ### 7. Export and import recordings
-Download a take as JSON, load it back; then as a **MIDI file**.
-- **Skills:** file APIs, binary formats (MIDI is a nice byte-level exercise)
-- **Files:** `useRecorder.ts`, new `lib/midi-file.ts`
+Download a take from the **recorder** as a MIDI file. The MIDI writer exists (`lib/music/midi-file.ts`, used by Audio to Piano): convert the recorder's `PerformanceEvent`s to timed notes and reuse it.
+- **Skills:** file APIs, adapting existing code
+- **Files:** `useRecorder.ts`, `Transport.tsx`, `lib/music/midi-file.ts`
 
 ### 8. Damper resonance
 Gentle sympathetic ringing while sustain is down, like a real grand.
@@ -79,10 +79,22 @@ Split the keyboard into two identical ranges for teacher and student, as on Yama
 
 | Task | Skill |
 | --- | --- |
-| **Playwright E2E tests** (real Chrome: press keys, assert the LCD) | End-to-end testing |
+| ~~Playwright E2E tests~~ ✅ (`e2e/`); next: add Firefox and WebKit projects | Cross-browser testing |
 | **Coverage report** (`@vitest/coverage-v8`) + badge | Measuring quality |
 | **Prettier** + format check in CI | Consistent formatting |
 | **Lighthouse CI** (performance and accessibility scores per PR) | Web performance |
 | **Deploy to Vercel** with preview deployments | Delivery |
 | **Error boundary** (`app/error.tsx`) | Resilience |
 | **Open Graph image** (`app/opengraph-image.tsx`) | Share previews |
+
+## 🎧 Audio to Piano and playback
+
+| Idea | Skills |
+| --- | --- |
+| **Faster CPU transcription** with TensorFlow.js's WebAssembly backend (check every model op is supported; serve the `.wasm` files) | Performance, WebAssembly, measuring before and after |
+| **Chase notes on seek**: start chords that are still sounding at the new position | Scheduling, test-first |
+| **Quantize** transcribed notes to a tempo grid (opt-in) | Algorithms, the editor reducer |
+| **Drag notes** in the piano roll (move and resize with the pointer) | Canvas hit-testing, pointer capture |
+| **Sustain pedal for playback**: book releases later while the pedal is down | Extending the scheduler |
+| **Save transcriptions** in IndexedDB (notes only, never the audio) | Browser storage, privacy by design |
+| **Score transcription on real recordings** (public-domain recordings with MIDI ground truth, e.g. the MAESTRO dataset) | Evaluation, metrics |

@@ -97,7 +97,7 @@ export default function PianoApp() {
   /** Open a page and bring it into view (scroll-padding keeps it clear of the keyboard) */
   const openTab = (next: TabId) => {
     setTab(next);
-    workspaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    workspaceRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   };
 
   /** The editor's "Preview note": sound one note now, with the current voice */

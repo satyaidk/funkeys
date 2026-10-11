@@ -10,7 +10,7 @@ The files that turn components into a website (`src/app/`) and the tooling confi
 const instrumentSans = Instrument_Sans({ variable: '--font-instrument', subsets: ['latin'], axes: ['wdth'] });
 const dotGothic = DotGothic16({ variable: '--font-dot', subsets: ['latin'], weight: '400' });
 
-export const metadata: Metadata = { title: 'Keyboard Piano', description, openGraph: { … } };
+export const metadata: Metadata = { title: 'funkeys', description, openGraph: { … } };
 export const viewport: Viewport = { themeColor: '#1a1220' };
 ```
 

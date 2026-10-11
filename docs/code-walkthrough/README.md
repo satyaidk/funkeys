@@ -5,12 +5,13 @@ A file-by-file explanation of the whole codebase. Read it **in order**: each par
 | # | Part | Files |
 | --- | --- | --- |
 | 1 | [Types](./01-types.md) | `types/index.ts` |
-| 2 | [Music](./02-music.md) | `lib/music/notes.ts`, `keyboard-map.ts`, `tuning.ts`, `sequence.ts`, `riffs.ts`, `looper.ts` |
+| 2 | [Music](./02-music.md) | `lib/music/notes.ts`, `keyboard-map.ts`, `tuning.ts`, `sequence.ts` |
 | 3 | [Audio](./03-audio.md) | `lib/audio/voices.ts`, `dynamics.ts`, `effects.ts`, `synth-voice.ts`, `audio-engine.ts`, `metronome.ts` |
 | 4 | [Core state](./04-core-state.md) | `lib/note-tracker.ts`, `settings.ts`, `constants.ts`, `dom.ts` |
-| 5 | [Hooks](./05-hooks.md) | `hooks/useAudioEngine.ts`, `useKeyboardInput.ts`, `useKeyboardLabels.ts`, `usePiano.ts`, `useMetronome.ts`, `useRecorder.ts`, `useLooper.ts` |
+| 5 | [Hooks](./05-hooks.md) | `hooks/useAudioEngine.ts`, `useKeyboardInput.ts`, `useKeyboardLabels.ts`, `usePiano.ts`, `useMetronome.ts`, `useRecorder.ts` |
 | 6 | [Components](./06-components.md) | `components/**`: piano, console, panels, ui primitives |
 | 7 | [App shell & config](./07-app-and-config.md) | `app/**`, `next.config.ts`, `tsconfig.json`, ESLint, Vitest, CI |
+| 8 | [Playback, songs, transcription and touch](./08-playback-and-transcription.md) | `lib/audio/sequence-player.ts`, `lib/music/songs.ts`, `note-events.ts`, `midi-file.ts`, `lib/transcription/**`, `lib/pointer-tracker.ts`, `lib/voicing.ts`, `useSequencePlayer`, `useTranscription`, the minimap and the docked keyboard |
 
 Tests (`*.test.ts(x)`, `src/test/`) are covered in [Testing](../testing.md).
 
