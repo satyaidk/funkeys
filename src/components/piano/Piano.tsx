@@ -252,8 +252,8 @@ export default function Piano({
   // ── Layout ─────────────────────────────────────────────────────────────
   const sizeVariables = {
     '--white-key-width': `clamp(${MIN_WHITE_KEY_WIDTH}px, calc((min(100vw, ${MAX_LAYOUT_WIDTH}) - ${HORIZONTAL_CHROME}) / ${whiteKeys.length}), ${WHITE_KEY_WIDTH}px)`,
-    // Tall enough to play, but never more than about half a landscape phone's height
-    '--white-key-height': `clamp(${MIN_WHITE_KEY_HEIGHT}px, min(calc(var(--white-key-width) * 4.2), 52dvh), ${WHITE_KEY_HEIGHT}px)`,
+    // Tall enough to play, but at most 40% of the screen height, so a phone in landscape keeps room above the keys
+    '--white-key-height': `clamp(${MIN_WHITE_KEY_HEIGHT}px, min(calc(var(--white-key-width) * 4.2), 40dvh), ${WHITE_KEY_HEIGHT}px)`,
     '--black-key-width': `calc(var(--white-key-width) * ${BLACK_KEY_WIDTH_RATIO})`,
     '--black-key-height': `calc(var(--white-key-height) * ${BLACK_KEY_HEIGHT_RATIO})`,
   } as CSSProperties;
@@ -281,11 +281,19 @@ export default function Piano({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-2 sm:px-3">
           {octave && <OctaveControls {...octave} />}
           {view.overflow ? (
-            <KeyboardMinimap notes={notes} view={view} litNoteIds={litNoteIds} onScrollTo={scrollTo} onStep={step} />
+            // On phones the minimap takes a row of its own, below the buttons
+            <KeyboardMinimap
+              notes={notes}
+              view={view}
+              litNoteIds={litNoteIds}
+              onScrollTo={scrollTo}
+              onStep={step}
+              className="order-last w-full sm:order-none sm:w-auto sm:flex-1"
+            />
           ) : (
             <div className="hidden flex-1 sm:block" />
           )}
-          {toolbarEnd && <div className="flex shrink-0 items-center gap-2">{toolbarEnd}</div>}
+          {toolbarEnd && <div className="ml-auto flex shrink-0 items-center gap-2 sm:ml-0">{toolbarEnd}</div>}
         </div>
       )}
 

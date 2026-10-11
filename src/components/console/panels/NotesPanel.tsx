@@ -132,12 +132,12 @@ export default function NotesPanel({ songs, player }: NotesPanelProps) {
   const timeline = selected ? safeTimeline(selected) : null;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] lg:items-start">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] lg:items-start">
       {/* ── The selected song ─────────────────────────────────────────── */}
       {selected && (
         <section
           aria-label="Selected song"
-          className="flex flex-col gap-3 rounded-xl border border-white/[0.06] bg-panel-sunk/70 p-3.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.03)] sm:p-4"
+          className="flex min-w-0 flex-col gap-3 rounded-xl border border-white/[0.06] bg-panel-sunk/70 p-3.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.03)] sm:p-4"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -268,7 +268,7 @@ export default function NotesPanel({ songs, player }: NotesPanelProps) {
                 Shuffle
               </PadButton>
             </div>
-            <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{picks.map(card)}</ul>
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">{picks.map(card)}</ul>
           </section>
         )}
 
@@ -277,7 +277,7 @@ export default function NotesPanel({ songs, player }: NotesPanelProps) {
             {browsing ? 'All songs' : 'Results'} <span className="text-ink-faint">· {results.length}</span>
           </h3>
           {results.length > 0 ? (
-            <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{results.map(card)}</ul>
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">{results.map(card)}</ul>
           ) : (
             <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed border-white/10 p-5 text-sm text-ink-muted">
               <p>

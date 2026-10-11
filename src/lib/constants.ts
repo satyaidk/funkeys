@@ -168,10 +168,10 @@ export const MIN_WHITE_KEY_WIDTH = 40;
 export const WHITE_KEY_HEIGHT = 224;
 
 /**
- * Minimum white key height in px. Key height also stops at about half the
- * viewport height, so a phone in landscape still shows the whole keyboard.
+ * Minimum white key height in px. Key height also stops at 40% of the
+ * viewport height, so a phone in landscape keeps room above the keys.
  */
-export const MIN_WHITE_KEY_HEIGHT = 140;
+export const MIN_WHITE_KEY_HEIGHT = 120;
 
 /** Black key width relative to a white key */
 export const BLACK_KEY_WIDTH_RATIO = 0.6;

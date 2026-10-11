@@ -13,26 +13,27 @@
  *        └─────────► useMetronome
  * ```
  *
- * then lays out the page, top to bottom, the same at every width:
+ * then lays out the page:
  *
  * ```
- *  header (name, links)
- *  control panel (volume · LCD · recorder)
- *  keyboard  ← stays in view while you scroll, on screens tall enough
- *  pedals
- *  function pages (Voice … Notes · Audio to Piano)
- *  key guide
+ *  header (name, links)                 header
+ *  control panel (volume · LCD · rec)   control panel
+ *  keyboard  ← pinned at the top        pedals
+ *  pedals                               function pages
+ *  function pages (Voice … Audio)       key guide
+ *  key guide                            keyboard ← docked at the bottom
+ *        tablet / desktop                     phone (ADR 0015)
  * ```
  *
- * The pages sit *below* the keyboard so a long song list or a piano roll
- * never pushes the keys off screen, and you can watch them light up while
- * you browse. Kept separate from the page so the page can stay a Server
- * Component.
+ * Either way the keys stay on screen while a long song list or a piano
+ * roll scrolls past, so you can watch them light up as you browse. The
+ * `dock` and `pin` variants are defined in globals.css. Kept separate from
+ * the page so the page can stay a Server Component.
  */
 
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { PianoNoteEvent } from '@/types';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { usePiano } from '@/hooks/usePiano';
@@ -80,15 +81,23 @@ export default function PianoApp() {
   const keyboardRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLElement>(null);
 
-  /** Open a page and scroll it into view, just below the keyboard if that stays on screen */
+  // Publish the keyboard's height, so content scrolled into view stays clear of it (globals.css)
+  useEffect(() => {
+    const keyboard = keyboardRef.current;
+    if (!keyboard || typeof ResizeObserver !== 'function') return;
+    const root = document.documentElement;
+    const observer = new ResizeObserver(() => root.style.setProperty('--keyboard-height', `${keyboard.offsetHeight}px`));
+    observer.observe(keyboard);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty('--keyboard-height');
+    };
+  }, []);
+
+  /** Open a page and bring it into view (scroll-padding keeps it clear of the keyboard) */
   const openTab = (next: TabId) => {
     setTab(next);
-    const workspace = workspaceRef.current;
-    if (!workspace) return;
-    const keyboard = keyboardRef.current;
-    const sticky = keyboard && getComputedStyle(keyboard).position === 'sticky';
-    const offset = sticky ? keyboard.getBoundingClientRect().height + 8 : 12;
-    window.scrollTo({ top: window.scrollY + workspace.getBoundingClientRect().top - offset, behavior: 'smooth' });
+    workspaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   /** The editor's "Preview note": sound one note now, with the current voice */
@@ -116,19 +125,19 @@ export default function PianoApp() {
     <div className="flex flex-col">
       <AppHeader onNavigate={openTab} onShowShortcuts={() => setShortcutsOpen(true)} />
 
-      {/* Cabinet, top: the control panel */}
-      <div className="mt-4 rounded-t-[18px] bg-linear-to-b from-[var(--cabinet-edge)] to-cabinet px-2 pt-2 shadow-[inset_0_1px_0_rgb(255_255_255/0.07)] sm:mt-6 sm:px-3 sm:pt-3">
+      {/* Cabinet, top: the control panel (a whole panel of its own when the keyboard is docked) */}
+      <div className="mt-4 rounded-t-[18px] bg-linear-to-b from-[var(--cabinet-edge)] to-cabinet px-2 pt-2 shadow-[inset_0_1px_0_rgb(255_255_255/0.07)] dock:rounded-b-[18px] dock:pb-2 sm:mt-6 sm:px-3 sm:pt-3">
         <ConsolePanel piano={piano} metronome={metronome} recorder={recorder} player={player} />
       </div>
 
-      {/* Cabinet, bottom: the keyboard. It stays in view while you scroll, only where that
-          leaves room for the page below it (Tailwind needs the class names written out in full) */}
+      {/* Cabinet, bottom: the keyboard. Docked to the bottom of a phone screen, pinned to the
+          top of a tall one, so the keys stay in view while you scroll */}
       <div
         ref={keyboardRef}
-        className="z-30 [@media(min-width:768px)_and_(min-height:700px)]:sticky [@media(min-width:768px)_and_(min-height:700px)]:top-0"
+        className="z-30 dock:sticky dock:bottom-0 dock:order-last dock:mt-6 pin:sticky pin:top-0"
       >
-        <div className="rounded-b-[18px] bg-linear-to-b from-cabinet to-[#0b0a0d] px-2 pb-2 shadow-[0_40px_90px_-30px_rgb(0_0_0/0.85)] sm:px-3 sm:pb-3">
-          <div className="rounded-b-[14px] bg-[#0c0a0e] pb-3 pt-3 sm:pb-4">
+        <div className="rounded-b-[18px] bg-linear-to-b from-cabinet to-[#0b0a0d] px-2 pb-2 shadow-[0_40px_90px_-30px_rgb(0_0_0/0.85)] dock:rounded-b-none dock:rounded-t-[18px] dock:pb-[max(0.5rem,env(safe-area-inset-bottom))] dock:shadow-[0_-18px_40px_-12px_rgb(0_0_0/0.9)] sm:px-3 sm:pb-3">
+          <div className="rounded-b-[14px] bg-[#0c0a0e] pb-3 pt-3 dock:rounded-[14px] dock:pb-2 dock:pt-2.5 sm:pb-4">
             <Piano
               notes={piano.notes}
               labels={labels}

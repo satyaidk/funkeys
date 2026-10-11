@@ -40,12 +40,13 @@ interface KeyboardMinimapProps {
   onScrollTo: (center: number) => void;
   /** Move the view one octave left or right */
   onStep: (direction: -1 | 1) => void;
+  className?: string;
 }
 
 /** Height of the drawing in SVG units; each white key is 1 unit wide */
 const HEIGHT = 5;
 
-export default function KeyboardMinimap({ notes, view, litNoteIds, onScrollTo, onStep }: KeyboardMinimapProps) {
+export default function KeyboardMinimap({ notes, view, litNoteIds, onScrollTo, onStep, className = '' }: KeyboardMinimapProps) {
   const { whites, blacks } = useMemo(() => {
     const whites: Note[] = [];
     const blacks: Array<{ note: Note; x: number }> = [];
@@ -68,7 +69,7 @@ export default function KeyboardMinimap({ notes, view, litNoteIds, onScrollTo, o
   };
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-1.5">
+    <div className={`flex min-w-0 items-center gap-1.5 ${className}`}>
       <PadButton
         aria-label="Show lower keys"
         disabled={view.start <= 0.001}

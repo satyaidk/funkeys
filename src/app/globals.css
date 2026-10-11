@@ -1,6 +1,25 @@
 @import "tailwindcss";
 
 /*
+ * Where the keyboard lives (see PianoApp):
+ * - dock: phones (narrow, or landscape and short). The keyboard is docked
+ *   to the bottom of the screen, always in reach, while the page scrolls above.
+ * - pin:  tablets and desktops tall enough. The keyboard stays pinned at the
+ *   top while the function pages scroll beneath.
+ * Anything in between (a short desktop window) scrolls normally.
+ */
+@custom-variant dock {
+  /* Either condition: the rule is emitted in both (a comma list lost its second half in the build) */
+  @media (max-width: 767px) {
+    @slot;
+  }
+  @media (max-height: 500px) {
+    @slot;
+  }
+}
+@custom-variant pin (@media (min-width: 768px) and (min-height: 700px));
+
+/*
  * Design tokens: "the instrument, seen from the bench".
  * The page is a physical digital piano on a dim stage: satin-ebony cabinet,
  * graphite control panel, walnut cheeks, red key felt, brass pedals and an
@@ -56,6 +75,28 @@
 
 html {
   background: var(--stage);
+}
+
+/*
+ * Keep whatever the browser scrolls into view (a focused control, a link
+ * target) clear of the keyboard: below it when it's pinned to the top,
+ * above it when it's docked at the bottom. PianoApp measures the keyboard
+ * into --keyboard-height. (Two blocks, not a comma list, to mirror `dock`.)
+ */
+@media (max-width: 767px) {
+  html {
+    scroll-padding-bottom: calc(var(--keyboard-height, 0px) + 12px);
+  }
+}
+@media (max-height: 500px) {
+  html {
+    scroll-padding-bottom: calc(var(--keyboard-height, 0px) + 12px);
+  }
+}
+@media (min-width: 768px) and (min-height: 700px) {
+  html {
+    scroll-padding-top: calc(var(--keyboard-height, 0px) + 12px);
+  }
 }
 
 body {
