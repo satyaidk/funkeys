@@ -25,3 +25,17 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   }
   return false;
 }
+
+/**
+ * Whether a keyboard event target uses the arrow keys itself: range
+ * sliders (tempo, seek bar) and widgets with a slider or spin-button role.
+ *
+ * Native range inputs move on arrow keys without calling preventDefault(),
+ * so the piano's arrow shortcuts (octave, transpose) must check for them.
+ */
+export function isAdjustableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target instanceof HTMLInputElement && target.type === 'range') return true;
+  const role = target.getAttribute('role');
+  return role === 'slider' || role === 'spinbutton';
+}

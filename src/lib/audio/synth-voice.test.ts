@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createVoice, holdDecayFor, panFor, VoiceParams } from './synth-voice';
 import { getVoice, VoiceDefinition } from './voices';
-import { SOFT_PEDAL } from '../constants';
+import { QUICK_RELEASE, SOFT_PEDAL } from '../constants';
 import {
   FakeAudioContext,
   FakeAudioNode,
@@ -174,6 +174,51 @@ describe('createVoice', () => {
       expect(ended).toBe(true);
       expect(ctx.oscillators.every((o) => o.disconnected)).toBe(true);
       expect(ctx.filters[0].disconnected).toBe(true);
+    });
+  });
+
+  describe('cancel', () => {
+    it('cuts a note short even after its release was booked for later', () => {
+      // Playback books the release when it books the note (start 0, end 2)
+      const voice = build(testVoice());
+      voice.release(2);
+      voice.cancel(1); // paused at 1 s
+
+      const events = envelopeOf().gain.events;
+      const cancelAt = events.findLast((e) => e.type === 'cancel')!;
+      expect(cancelAt.time).toBe(1);
+      expect(events.at(-1)).toEqual({ type: 'linearRamp', value: 0, time: 1 + QUICK_RELEASE });
+      ctx.oscillators.forEach((o) => expect(o.stopTime).toBeCloseTo(1 + QUICK_RELEASE + 0.05));
+    });
+
+    it('fades from the level reached part-way through a release', () => {
+      const voice = build(testVoice()); // sustain level 0.5 × peak, release 0.4 s
+      voice.release(1);
+      voice.cancel(1.2); // halfway through the release fade
+
+      const events = envelopeOf().gain.events;
+      const peak = events[1].value!;
+      const from = events.findLast((e) => e.type === 'set')!;
+      expect(from.time).toBe(1.2);
+      expect(from.value!).toBeCloseTo(peak * 0.5 * 0.5);
+    });
+
+    it('silences a note booked for the future before it starts, hammer noise included', () => {
+      const noiseBuffer = ctx.createBuffer(1, 100, ctx.sampleRate) as unknown as AudioBuffer;
+      const voice = build(getVoice('grand'), { startTime: 5, noiseBuffer });
+      voice.cancel(1);
+
+      const from = envelopeOf().gain.events.findLast((e) => e.type === 'set')!;
+      expect(from).toEqual({ type: 'set', value: 0, time: 1 });
+      expect(ctx.bufferSources[0].stopTime).toBe(1); // before its start at 5: never plays
+    });
+
+    it('only cancels once', () => {
+      const voice = build(testVoice());
+      voice.cancel(1);
+      voice.cancel(3);
+      ctx.oscillators.forEach((o) => expect(o.stopTime).toBeCloseTo(1 + QUICK_RELEASE + 0.05));
+      expect(voice.released).toBe(true);
     });
   });
 

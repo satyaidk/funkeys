@@ -5,7 +5,11 @@
  * setting (e.g. Tuning lights when transposed), so you can see at a glance
  * what's changed without opening every page.
  *
- * Keyboard: arrow keys move between tabs (WAI-ARIA tabs pattern).
+ * Keyboard: arrow keys move between tabs (WAI-ARIA tabs pattern). On
+ * phones the tabs wrap onto two rows rather than hiding off-screen.
+ *
+ * The selected page can be controlled from outside (`value`/`onChange`), so
+ * the header's links can open the Notes and Audio pages.
  */
 
 'use client';
@@ -15,15 +19,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Led from '../ui/Led';
 import { preventMouseFocus } from '../ui/PadButton';
 
-export type TabId = 'voice' | 'layer' | 'sound' | 'tuning' | 'metronome' | 'notes';
+export type TabId = 'voice' | 'layer' | 'sound' | 'tuning' | 'metronome' | 'notes' | 'audio';
 
-const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
+export const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: 'voice', label: 'Voice' },
   { id: 'layer', label: 'Layer & split' },
   { id: 'sound', label: 'Sound' },
   { id: 'tuning', label: 'Tuning' },
   { id: 'metronome', label: 'Metronome' },
   { id: 'notes', label: 'Notes' },
+  { id: 'audio', label: 'Audio to Piano' },
 ];
 
 interface FunctionTabsProps {
@@ -32,10 +37,18 @@ interface FunctionTabsProps {
   indicators: Partial<Record<TabId, boolean>>;
   /** Extra controls at the end of the tab bar */
   actions?: React.ReactNode;
+  /** Selected page, when controlled from outside */
+  value?: TabId;
+  onChange?: (tab: TabId) => void;
 }
 
-export default function FunctionTabs({ panels, indicators, actions }: FunctionTabsProps) {
-  const [active, setActive] = useState<TabId>('voice');
+export default function FunctionTabs({ panels, indicators, actions, value, onChange }: FunctionTabsProps) {
+  const [ownActive, setOwnActive] = useState<TabId>('voice');
+  const active = value ?? ownActive;
+  const setActive = (tab: TabId) => {
+    setOwnActive(tab);
+    onChange?.(tab);
+  };
   const id = useId();
   const tabsRef = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -52,7 +65,7 @@ export default function FunctionTabs({ panels, indicators, actions }: FunctionTa
   return (
     <div>
       <div className="flex items-end justify-between gap-3 border-b border-black/50 shadow-[0_1px_0_rgb(255_255_255/0.04)]">
-        <div role="tablist" aria-label="Piano functions" onKeyDown={handleKeyDown} className="scroll-rail -mb-px flex overflow-x-auto">
+        <div role="tablist" aria-label="Piano functions" onKeyDown={handleKeyDown} className="-mb-px flex flex-wrap">
           {TABS.map((tab, i) => {
             const selected = tab.id === active;
             return (
@@ -69,7 +82,7 @@ export default function FunctionTabs({ panels, indicators, actions }: FunctionTa
                 tabIndex={selected ? 0 : -1}
                 onMouseDown={preventMouseFocus}
                 onClick={() => setActive(tab.id)}
-                className={`relative flex items-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors ${
+                className={`relative flex items-center gap-2 whitespace-nowrap px-3 py-2.5 text-sm transition-colors sm:px-4 sm:py-3 ${
                   selected ? 'text-ink' : 'text-ink-muted hover:text-ink'
                 }`}
               >

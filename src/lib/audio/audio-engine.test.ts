@@ -165,6 +165,49 @@ describe('AudioEngine', () => {
     });
   });
 
+  describe('scheduleNote', () => {
+    beforeEach(() => engine.init());
+
+    it('books a note to start and release at exact audio-clock times', () => {
+      const ctx = latestAudioContext();
+      ctx.currentTime = 10;
+      engine.scheduleNote(440, grand, 10.2, 11);
+
+      const release = getVoice('grand').envelope.release;
+      partialOscillators(ctx).forEach((osc) => {
+        expect(osc.startTime).toBeCloseTo(10.2);
+        expect(osc.stopTime).toBeCloseTo(11 + release + 0.05);
+      });
+      expect(engine.voiceCount).toBe(1);
+    });
+
+    it('does not hold the note by id, so the same pitch can be booked twice', () => {
+      engine.scheduleNote(440, grand, 0.1, 0.5);
+      engine.scheduleNote(440, grand, 0.5, 1);
+      expect(engine.voiceCount).toBe(2);
+      expect(engine.isNotePlaying('A4')).toBe(false);
+    });
+
+    it('never starts a note in the past', () => {
+      const ctx = latestAudioContext();
+      ctx.currentTime = 5;
+      engine.scheduleNote(440, grand, 4, 6);
+      partialOscillators(ctx).forEach((osc) => expect(osc.startTime).toBe(5));
+    });
+
+    it('cancels a booked note with a quick fade', () => {
+      const ctx = latestAudioContext();
+      const note = engine.scheduleNote(440, grand, 0, 4)!;
+      ctx.currentTime = 1;
+      note.cancel();
+      partialOscillators(ctx).forEach((osc) => expect(osc.stopTime).toBeCloseTo(1 + QUICK_RELEASE + 0.05));
+    });
+
+    it('returns null before init', () => {
+      expect(new AudioEngine().scheduleNote(440, grand, 0, 1)).toBeNull();
+    });
+  });
+
   describe('effects and settings', () => {
     beforeEach(() => engine.init());
 

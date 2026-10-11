@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isTypingTarget } from './dom';
+import { isAdjustableTarget, isTypingTarget } from './dom';
 
 function input(type: string) {
   const el = document.createElement('input');
@@ -39,5 +39,22 @@ describe('isTypingTarget', () => {
     expect(isTypingTarget(document.createElement('div'))).toBe(false);
     expect(isTypingTarget(window)).toBe(false);
     expect(isTypingTarget(null)).toBe(false);
+  });
+});
+
+describe('isAdjustableTarget', () => {
+  it('recognizes controls that use the arrow keys themselves', () => {
+    const range = document.createElement('input');
+    range.type = 'range';
+    const knob = document.createElement('div');
+    knob.setAttribute('role', 'slider');
+    expect(isAdjustableTarget(range)).toBe(true);
+    expect(isAdjustableTarget(knob)).toBe(true);
+  });
+
+  it('ignores everything else', () => {
+    expect(isAdjustableTarget(document.createElement('button'))).toBe(false);
+    expect(isAdjustableTarget(window)).toBe(false);
+    expect(isAdjustableTarget(null)).toBe(false);
   });
 });

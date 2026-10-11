@@ -12,6 +12,8 @@
  *
  * - Each note creates one voice per layer (see `synth-voice.ts`)
  * - Voices are tracked per note id so they can be released on key-up
+ * - Playback (songs, transcriptions) books notes ahead of time on the audio
+ *   clock with `scheduleNote`, getting a handle to cancel them
  * - A polyphony limit fades out the oldest voices when too many are sounding
  * - Settings (volume, reverb, brilliance) can be set before the context
  *   exists; they're applied when it's created on the first user gesture
@@ -31,6 +33,12 @@ import {
 import { createImpulseResponse } from './effects';
 import { createVoice, SynthVoice } from './synth-voice';
 import { getVoice } from './voices';
+
+/** A note booked on the audio clock */
+export interface ScheduledNote {
+  /** Silence it now with a quick fade (or before it starts, if it hasn't yet) */
+  cancel(): void;
+}
 
 /** Older Safari only exposes the prefixed constructor */
 type WindowWithWebkitAudio = Window & { webkitAudioContext?: typeof AudioContext };
@@ -163,6 +171,54 @@ export class AudioEngine {
   }
 
   /**
+   * Book a note to start and end at exact audio-clock times.
+   *
+   * Unlike `playNote`, nothing is tracked by note id: playback can sound
+   * the same pitch twice in a row, or while you hold that key yourself.
+   * The voices still count toward the polyphony limit.
+   *
+   * @param startTime - When to strike, in audio-clock seconds (never earlier than now)
+   * @param endTime   - When to release (the voice's release tail follows)
+   * @returns a handle to cancel the note, or null before `init()`
+   */
+  scheduleNote(
+    frequency: number,
+    options: PlayNoteOptions,
+    startTime: number,
+    endTime: number
+  ): ScheduledNote | null {
+    const context = this.context;
+    if (!context || !this.voiceBus) return null;
+
+    const now = context.currentTime;
+    const start = Math.max(now, startTime);
+    const end = Math.max(start + 0.01, endTime);
+    const voices = options.voices.map((layer) => {
+      const voice = createVoice(context, this.voiceBus!, getVoice(layer.voice), {
+        frequency,
+        velocity: options.velocity,
+        midi: options.midi,
+        gain: layer.gain,
+        soft: options.soft ?? false,
+        startTime: start,
+        noiseBuffer: this.noiseBuffer,
+      });
+      voice.onEnded = () => this.forgetVoice(voice);
+      voice.release(end);
+      return voice;
+    });
+
+    this.liveVoices.push(...voices);
+    this.enforcePolyphony(now);
+    return {
+      cancel: () => {
+        const at = this.context?.currentTime ?? 0;
+        voices.forEach((voice) => voice.cancel(at));
+      },
+    };
+  }
+
+  /**
    * Release a held note.
    *
    * The note is forgotten right away, so pressing the same key again during
@@ -274,7 +330,8 @@ export class AudioEngine {
   private enforcePolyphony(now: number): void {
     while (this.liveVoices.length > MAX_POLYPHONY) {
       const oldest = this.liveVoices.shift()!;
-      oldest.release(now, QUICK_RELEASE);
+      // cancel() also cuts voices whose release is booked for later (playback)
+      oldest.cancel(now);
     }
   }
 

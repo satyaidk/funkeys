@@ -28,14 +28,13 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { PedalName, PedalState, PerformanceAction, PianoSettings } from '@/types';
 import { generateNotes } from '@/lib/music/keyboard-map';
-import { getMidiNumber, noteIdToMidi } from '@/lib/music/notes';
-import { midiToFrequency } from '@/lib/music/tuning';
-import { resolveVoices } from '@/lib/audio/voices';
+import { noteIdToMidi } from '@/lib/music/notes';
 import { applyTouchCurve } from '@/lib/audio/dynamics';
 import { NoteTracker } from '@/lib/note-tracker';
 import { DEFAULT_SETTINGS, sanitizeSettings } from '@/lib/settings';
-import { isTypingTarget } from '@/lib/dom';
-import { BASE_OCTAVE, KEYBOARD_VELOCITY } from '@/lib/constants';
+import { voiceNote } from '@/lib/voicing';
+import { isAdjustableTarget, isTypingTarget } from '@/lib/dom';
+import { KEYBOARD_VELOCITY } from '@/lib/constants';
 import { AudioControls } from './useAudioEngine';
 import { useKeyboardInput } from './useKeyboardInput';
 
@@ -102,13 +101,8 @@ export function usePiano({ audio, onPerformanceAction }: UsePianoOptions) {
       if (midi === null || !tracker.press(noteId)) return;
 
       const s = settingsRef.current;
-      const lowestKeyMidi = getMidiNumber('C', BASE_OCTAVE + s.octaveShift);
-      audio.playNote(noteId, midiToFrequency(midi, s), {
-        voices: resolveVoices(s, midi - lowestKeyMidi),
-        velocity: applyTouchCurve(rawVelocity, s.touch),
-        midi: midi + s.transpose,
-        soft: pedalsRef.current.soft,
-      });
+      const { frequency, options } = voiceNote(midi, s, applyTouchCurve(rawVelocity, s.touch), pedalsRef.current.soft);
+      audio.playNote(noteId, frequency, options);
       onActionRef.current?.({ type: 'noteOn', noteId, velocity: rawVelocity });
       syncNotes();
     },
@@ -200,11 +194,13 @@ export function usePiano({ audio, onPerformanceAction }: UsePianoOptions) {
       switch (e.code) {
         case 'ArrowLeft':
         case 'ArrowRight':
+          if (isAdjustableTarget(e.target)) return; // a focused slider uses its own arrows
           e.preventDefault();
           if (!e.repeat) updateSettings({ octaveShift: s.octaveShift + (e.code === 'ArrowRight' ? 1 : -1) });
           break;
         case 'ArrowUp':
         case 'ArrowDown':
+          if (isAdjustableTarget(e.target)) return;
           e.preventDefault();
           if (!e.repeat) updateSettings({ transpose: s.transpose + (e.code === 'ArrowUp' ? 1 : -1) });
           break;
@@ -260,6 +256,8 @@ export function usePiano({ audio, onPerformanceAction }: UsePianoOptions) {
   // ── Public API ─────────────────────────────────────────────────────────
 
   return {
+    /** The latest settings, readable synchronously from timers and handlers */
+    settingsRef,
     /** Keys on the keyboard for the current octave, lowest first */
     notes,
     /** Current settings (validated) */

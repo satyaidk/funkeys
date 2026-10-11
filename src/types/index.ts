@@ -135,6 +135,39 @@ export interface PlayNoteOptions {
   soft?: boolean;
 }
 
+// ─── Timed notes (songs, transcriptions, playback) ───────────────────────────
+
+/**
+ * One note of a piece, timed in **seconds** from the start.
+ *
+ * The one shape every timeline in the app shares: songs from the Notes
+ * library (converted from beats), audio transcriptions, the editor, MIDI
+ * export and the sequence player. Notes may overlap and start together
+ * (chords); pitch is stored as-is, never moved to fit the keyboard.
+ */
+export interface PianoNoteEvent {
+  /** Stable id, unique within its piece (used for selection and editing) */
+  id: string;
+  /** MIDI note number (60 = middle C) */
+  midi: number;
+  /** Start, in seconds from the beginning */
+  startTime: number;
+  /** End, in seconds from the beginning (always after `startTime`) */
+  endTime: number;
+  /** Playing strength (0–1) */
+  velocity: number;
+}
+
+/** Notes detected in an audio recording */
+export interface PianoTranscription {
+  /** Length of the original recording in seconds, silence included */
+  duration: number;
+  /** Sample rate of the original file, when known */
+  sampleRate?: number;
+  /** Detected notes, sorted by start time */
+  notes: PianoNoteEvent[];
+}
+
 // ─── Recorder ────────────────────────────────────────────────────────────────
 
 export type RecorderStatus = 'idle' | 'recording' | 'playing';

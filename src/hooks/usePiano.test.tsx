@@ -134,6 +134,18 @@ describe('usePiano', () => {
       expect(fundamental).toBeCloseTo(440 * 2 ** (2 / 12), 0);
     });
 
+    // Regression: ← on the focused tempo slider also used to shift the octave
+    it('leaves the arrows to a focused slider', () => {
+      const { result } = renderPiano();
+      const slider = document.body.appendChild(document.createElement('input'));
+      slider.type = 'range';
+      fireEvent.keyDown(slider, { code: 'ArrowRight' });
+      fireEvent.keyDown(slider, { code: 'ArrowUp' });
+      expect(result.current.settings.octaveShift).toBe(0);
+      expect(result.current.settings.transpose).toBe(0);
+      slider.remove();
+    });
+
     it('leaves Ctrl+arrow combinations to the browser', () => {
       const { result } = renderPiano();
       press('ArrowRight', { ctrlKey: true });

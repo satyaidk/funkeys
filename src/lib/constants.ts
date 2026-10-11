@@ -17,6 +17,10 @@ export const MIN_OCTAVE_SHIFT = -2;
 /** Maximum allowed octave shift (2 octaves up: C5 → C8, the top of a grand piano) */
 export const MAX_OCTAVE_SHIFT = 2;
 
+/** Lowest (A0) and highest (C8) keys of an 88-key piano, as MIDI numbers */
+export const PIANO_LOWEST_MIDI = 21;
+export const PIANO_HIGHEST_MIDI = 108;
+
 // ─── Tuning ──────────────────────────────────────────────────────────────────
 
 /** Concert pitch: the frequency of A4 in Hz */
@@ -113,27 +117,39 @@ export const METRONOME_SCHEDULE_AHEAD = 0.12;
 /** Taps further apart than this (ms) start a new tap-tempo measurement */
 export const TAP_TEMPO_RESET_MS = 2000;
 
-// ─── Looper (Notes page) ─────────────────────────────────────────────────────
+// ─── Sequence player (songs and transcriptions) ──────────────────────────────
 
-/** Playback speeds for practice; 1 is the song's own tempo */
-export const LOOP_SPEEDS = [0.5, 0.75, 1, 1.25] as const;
+/** How often the playback scheduler wakes up (ms), like the metronome's */
+export const SEQUENCE_LOOKAHEAD_MS = 25;
 
-/**
- * Share of each note's written length that it actually sounds (a sequencer's
- * "gate"). The short gap before the next note lets a repeated note strike
- * again instead of blurring into one long note.
- */
-export const LOOP_GATE = 0.9;
-
-/** How long (ms) before a pass ends the looper books the next one */
-export const LOOP_SCHEDULE_AHEAD_MS = 100;
+/** How far ahead (s) it books notes on the audio clock */
+export const SEQUENCE_SCHEDULE_AHEAD = 0.2;
 
 /**
- * If the looper falls further behind than this (ms), e.g. while the tab was
- * in the background, it restarts the pass from now instead of playing every
- * missed note at once.
+ * Booking horizon (s) while the tab is hidden. Browsers slow background
+ * timers to about once a second, so it books further ahead to keep playing
+ * without gaps.
  */
-export const LOOP_MAX_LATE_MS = 250;
+export const SEQUENCE_SCHEDULE_AHEAD_HIDDEN = 1.5;
+
+/** Gap (s) before the first note, so it isn't booked in the past */
+export const SEQUENCE_START_DELAY = 0.05;
+
+/** Playback speed limits (1 = original tempo) */
+export const MIN_PLAYBACK_RATE = 0.25;
+export const MAX_PLAYBACK_RATE = 2;
+
+// ─── Notes library ───────────────────────────────────────────────────────────
+
+/** Practice speeds offered for songs; 1 is the song's own tempo */
+export const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25] as const;
+
+/**
+ * Share of each song note's written length that it actually sounds (a
+ * sequencer's "gate"). The short gap before the next note lets a repeated
+ * note strike again instead of blurring into one long note.
+ */
+export const SONG_GATE = 0.9;
 
 // ─── Key Dimensions ──────────────────────────────────────────────────────────
 
