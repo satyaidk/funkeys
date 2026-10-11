@@ -142,16 +142,20 @@ export const WHITE_KEY_WIDTH = 58;
 
 /**
  * Minimum white key width in px. Below the width needed to fit every key,
- * the keyboard scrolls sideways instead of shrinking further, so keys stay
- * big enough to tap.
+ * the keys keep this size and the keyboard becomes a window you move with
+ * the minimap, so keys stay big enough to tap (ADR 0015). 40 px fits about
+ * an octave on a 375 px phone.
  */
-export const MIN_WHITE_KEY_WIDTH = 34;
+export const MIN_WHITE_KEY_WIDTH = 40;
 
 /** Maximum white key height in px */
 export const WHITE_KEY_HEIGHT = 224;
 
-/** Minimum white key height in px */
-export const MIN_WHITE_KEY_HEIGHT = 168;
+/**
+ * Minimum white key height in px. Key height also stops at about half the
+ * viewport height, so a phone in landscape still shows the whole keyboard.
+ */
+export const MIN_WHITE_KEY_HEIGHT = 140;
 
 /** Black key width relative to a white key */
 export const BLACK_KEY_WIDTH_RATIO = 0.6;

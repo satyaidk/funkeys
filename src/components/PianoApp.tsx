@@ -23,6 +23,7 @@ import { useRecorder } from '@/hooks/useRecorder';
 import { useLooper } from '@/hooks/useLooper';
 import { useKeyboardLabels } from '@/hooks/useKeyboardLabels';
 import { getVoice } from '@/lib/audio/voices';
+import { MAX_OCTAVE_SHIFT, MIN_OCTAVE_SHIFT } from '@/lib/constants';
 import ConsolePanel from './console/ConsolePanel';
 import Piano from './piano/Piano';
 import PedalUnit from './piano/PedalUnit';
@@ -61,6 +62,12 @@ export default function PianoApp() {
               onNoteOn={piano.noteOn}
               onNoteOff={piano.noteOff}
               split={split}
+              octave={{
+                shift: settings.octaveShift,
+                min: MIN_OCTAVE_SHIFT,
+                max: MAX_OCTAVE_SHIFT,
+                onChange: (octaveShift) => piano.updateSettings({ octaveShift }),
+              }}
             />
           </div>
         </div>

@@ -11,7 +11,8 @@
  * It also handles real-world edge cases:
  * 1. **Key repeat**: holding a key fires repeated keydowns; they're ignored
  * 2. **Text fields**: no notes while typing in an input
- * 3. **Focus loss**: Alt+Tab while holding keys releases them (no stuck notes)
+ * 3. **Focus loss**: Alt+Tab or switching tabs while holding keys releases
+ *    them (no stuck notes)
  * 4. **Shortcuts**: Ctrl/Alt/Cmd combinations are left to the browser
  * 5. **Handled keys**: events a control already handled (`defaultPrevented`) are skipped
  */
@@ -79,14 +80,20 @@ export function useKeyboardInput({
       pressedKeys.clear();
     };
 
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') handleBlur();
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('blur', handleBlur);
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [enabled, notes, onNoteStart, onNoteStop]);
 }

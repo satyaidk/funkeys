@@ -10,7 +10,8 @@
  * - Settings (voice, mode, tuning, effects, touch), always validated
  * - The three pedals, from the keyboard, the screen or a recording
  * - Turning a key press into sound: voices → frequency → velocity → engine
- * - Control shortcuts: ←/→ octave, ↑/↓ transpose, Space sustain, Shift soft
+ * - Control shortcuts: ←/→ octave, ↑/↓ transpose, Space sustain, Shift soft,
+ *   \ sostenuto
  *
  * ## Data flow
  * ```
@@ -217,29 +218,44 @@ export function usePiano({ audio, onPerformanceAction }: UsePianoOptions) {
         case 'ShiftRight':
           if (!e.repeat) setPedal('soft', true, 'keyboard');
           break;
+        case 'Backslash':
+        case 'IntlBackslash': // the extra key beside left Shift on ISO keyboards
+          if (!e.repeat) setPedal('sostenuto', true, 'keyboard');
+          break;
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'Space') setPedal('sustain', false, 'keyboard');
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') setPedal('soft', false, 'keyboard');
+      if (e.code === 'Backslash' || e.code === 'IntlBackslash') setPedal('sostenuto', false, 'keyboard');
     };
 
     /** Keys held while the window loses focus never send keyup */
     const handleBlur = () => {
       setPedal('sustain', false, 'keyboard');
       setPedal('soft', false, 'keyboard');
+      setPedal('sostenuto', false, 'keyboard');
+    };
+
+    /** Switching tabs or apps: nothing may keep sounding from a key you can no longer lift */
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'hidden') return;
+      handleBlur();
+      releaseAll();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('blur', handleBlur);
+    document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [updateSettings, setPedal]);
+  }, [updateSettings, setPedal, releaseAll]);
 
   // ── Public API ─────────────────────────────────────────────────────────
 

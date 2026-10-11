@@ -197,6 +197,30 @@ describe('usePiano', () => {
       expect(result.current.pedals.soft).toBe(false);
     });
 
+    it('holds the sostenuto pedal while Backslash is held', () => {
+      const { result } = renderPiano();
+      press('KeyZ'); // C3 held
+      press('Backslash');
+      expect(result.current.pedals.sostenuto).toBe(true);
+      release('KeyZ');
+      expect(result.current.sustainedNoteIds).toEqual(new Set(['C3']));
+      release('Backslash');
+      expect(result.current.pedals.sostenuto).toBe(false);
+      expect(result.current.sustainedNoteIds.size).toBe(0);
+    });
+
+    it('releases notes and keyboard pedals when the tab is hidden', () => {
+      const { result } = renderPiano();
+      press('Space');
+      press('KeyZ');
+      vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+      fireEvent(document, new Event('visibilitychange'));
+
+      expect(result.current.activeNoteIds.size).toBe(0);
+      expect(result.current.pedals.sustain).toBe(false);
+      partialOscillators(latestAudioContext()).forEach((o) => expect(o.stopTime).not.toBeNull());
+    });
+
     it('lifts keyboard pedals when the window loses focus', () => {
       const { result } = renderPiano();
       press('Space');

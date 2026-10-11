@@ -6,7 +6,8 @@
  * - **Sustain (damper)**: keeps every released note ringing
  *
  * Clicking a pedal latches it (a mouse can't hold a pedal and play keys at
- * the same time); the keyboard shortcuts hold it only while pressed. Either
+ * the same time); the keyboard shortcuts (Shift, \, Space) hold it only
+ * while pressed. Either
  * way, the pedal moves down so you can see its state.
  */
 
@@ -23,7 +24,7 @@ interface PedalUnitProps {
 
 const PEDALS: ReadonlyArray<{ id: PedalName; name: string; shortcut: string | null; description: string }> = [
   { id: 'soft', name: 'Soft', shortcut: 'Shift', description: 'Quieter, darker tone' },
-  { id: 'sostenuto', name: 'Sostenuto', shortcut: null, description: 'Holds the notes you are holding' },
+  { id: 'sostenuto', name: 'Sostenuto', shortcut: '\\', description: 'Holds the notes you are holding' },
   { id: 'sustain', name: 'Sustain', shortcut: 'Space', description: 'Notes ring after you let go' },
 ];
 

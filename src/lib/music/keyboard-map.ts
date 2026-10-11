@@ -24,8 +24,8 @@
  */
 
 import { Manual, Note, NoteName } from '@/types';
-import { BASE_OCTAVE } from '../constants';
-import { getMidiNumber } from './notes';
+import { BASE_OCTAVE, MAX_OCTAVE_SHIFT, MIN_OCTAVE_SHIFT } from '../constants';
+import { getMidiNumber, midiToNoteId } from './notes';
 
 interface KeyMapping {
   /** `KeyboardEvent.code` of the physical key */
@@ -125,4 +125,45 @@ export function getWhiteKeys(notes: Note[]): Note[] {
 /** Filter to only black (sharp) keys */
 export function getBlackKeys(notes: Note[]): Note[] {
   return notes.filter((n) => n.isBlack);
+}
+
+/** Lowest and highest MIDI numbers on the keyboard for an octave shift (C3–C6 at 0) */
+export function keyboardRange(octaveShift: number = 0): { low: number; high: number } {
+  const low = getMidiNumber('C', BASE_OCTAVE + octaveShift);
+  return { low, high: low + KEY_COUNT - 1 };
+}
+
+/** The keyboard's range as text, e.g. "C3–C6" */
+export function keyboardRangeLabel(octaveShift: number = 0): string {
+  const { low, high } = keyboardRange(octaveShift);
+  return `${midiToNoteId(low)}–${midiToNoteId(high)}`;
+}
+
+/**
+ * The octave shift that shows the most of a piece's notes on the keyboard.
+ *
+ * Used when a song or transcription starts playing, so its keys light up
+ * where you can see them. Ties keep the current shift (no needless jump),
+ * then prefer the shift closest to it.
+ *
+ * @param midis - The pitches of the piece (duplicates count as more weight)
+ */
+export function bestOctaveShift(midis: readonly number[], currentShift: number = 0): number {
+  if (midis.length === 0) return currentShift;
+  let best = currentShift;
+  let bestCount = -1;
+  const candidates = [currentShift];
+  for (let shift = MIN_OCTAVE_SHIFT; shift <= MAX_OCTAVE_SHIFT; shift++) {
+    if (shift !== currentShift) candidates.push(shift);
+  }
+  candidates.sort((a, b) => Math.abs(a - currentShift) - Math.abs(b - currentShift));
+  for (const shift of candidates) {
+    const { low, high } = keyboardRange(shift);
+    const count = midis.reduce((n, midi) => n + (midi >= low && midi <= high ? 1 : 0), 0);
+    if (count > bestCount) {
+      best = shift;
+      bestCount = count;
+    }
+  }
+  return best;
 }
